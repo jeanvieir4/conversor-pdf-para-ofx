@@ -1,0 +1,114 @@
+CONVERSOR OCR (EXTRATO DIGITALIZADO -> EXCEL + OFX)
+==================================================================
+Jean Vieira | (49) 99907-9884 | jean.vieira@hotmail.com
+
+Ferramenta SEPARADA do Conversor_Extratos normal. So use essa aqui
+quando o PDF for uma IMAGEM ESCANEADA ou um print/PDF exportado direto
+do aplicativo do banco (sem texto selecionavel) - o Conversor_Extratos
+normal avisa quando e esse o caso ("Esse PDF parece ser uma imagem
+escaneada...").
+
+AVISO IMPORTANTE - LEIA ANTES DE USAR
+--------------------------------------------------
+Essa ferramenta le o extrato por OCR (reconhecimento optico de
+caracteres), nao por texto nativo do PDF. OCR ERRA, mesmo em numeros
+que parecem corretos - testado num extrato real, uma fatia das linhas
+(entre 5% e 11% dependendo do arquivo) sai com o sinal credito/debito
+que nao da pra confirmar com certeza.
+
+Por isso, TODA planilha gerada por essa ferramenta:
+- Vem com a coluna "Observacao" marcada "Gerado por OCR - confira
+  contra o extrato original antes de usar" em toda linha;
+- As linhas onde o credito/debito ficou incerto vem destacadas em
+  VERMELHO e marcadas "[A VERIFICAR - OCR]" - essas NAO entram no
+  arquivo .ofx (nao da pra mandar um lancamento com sinal desconhecido
+  pro sistema contabil);
+- Voce PRECISA conferir cada extrato gerado por essa ferramenta contra
+  o PDF original antes de usar em qualquer fechamento ou declaracao.
+
+Essa ferramenta e um auxilio pra economizar digitacao, nunca uma fonte
+de dado pronto pra usar sem conferencia.
+
+AVISO NA PRIMEIRA EXECUCAO (LEIA ANTES DE RODAR)
+--------------------------------------------------
+Na primeira vez que abrir o programa, o Windows provavelmente vai mostrar
+uma tela azul "O Windows protegeu o computador" com "Editor desconhecido",
+e o antivirus pode dar um alerta - isso e ainda mais provavel nessa
+ferramenta porque o arquivo e grande (tem o motor de OCR embutido).
+Isso NAO significa que e virus, e o aviso padrao pra qualquer .exe sem
+certificado de assinatura digital.
+
+Pra rodar mesmo assim:
+1. Na tela azul do SmartScreen, clique em "Mais informacoes".
+2. Clique no botao "Executar assim mesmo" que aparece.
+Se o antivirus colocar o arquivo em quarentena, restaure o arquivo e
+adicione uma excecao pra ele.
+
+COMO USAR
+---------
+1. Coloque o(s) extrato(s) digitalizado(s) em PDF na MESMA PASTA deste
+   programa (Conversor_OCR.exe).
+2. De dois cliques em "Conversor_OCR.exe".
+3. Aguarde a janela preta terminar de processar - OCR e mais lento que
+   o conversor normal, pode levar bem mais tempo por PDF.
+4. Pra cada PDF sao gerados, na mesma pasta:
+   - um .xlsx com o mesmo nome do PDF;
+   - um .ofx (so com os lancamentos onde o sinal foi confirmado - os
+     "[A VERIFICAR]" ficam de fora e precisam ser lancados manualmente
+     depois de conferir).
+5. Aperte Enter (ou feche a janela) quando terminar.
+
+ALTERNATIVA: ARRASTAR E SOLTAR
+-------------------------------
+Voce tambem pode selecionar um ou mais PDFs e arrasta-los para cima
+do icone do Conversor_OCR.exe.
+
+BANCOS SUPORTADOS
+------------------
+Por enquanto, so o extrato exportado pelo APLICATIVO da Caixa Economica
+Federal (diferente do PDF "gerenciador" da Caixa, que ja e suportado
+pelo Conversor_Extratos normal, sem precisar de OCR).
+
+Se um extrato digitalizado for de outro banco (ou de um layout da Caixa
+diferente do testado), ele nao gera lancamentos e aparece um aviso na
+aba "Pendencias" da planilha. Nesse caso, envie o PDF pro Jean pra
+adicionar suporte aquele layout - so da pra fazer isso com uma amostra
+real em maos (nunca adivinhando o formato).
+
+PROBLEMAS COMUNS
+-----------------
+- "Nenhum arquivo PDF encontrado": verifique se o(s) PDF(s) estao na
+  mesma pasta do Conversor_OCR.exe.
+- Demora bastante: normal, OCR e mais pesado que leitura de texto
+  nativo. PDFs com muitas paginas podem levar alguns minutos.
+- Aviso do SmartScreen ou do antivirus na primeira execucao: ver secao
+  "AVISO NA PRIMEIRA EXECUCAO" no topo deste arquivo.
+
+AVISO DE RESPONSABILIDADE
+---------------------------
+Ferramenta oferecida "como esta", gratuita, sem garantia. Diferente do
+Conversor_Extratos normal (que le texto nativo do PDF e e bem confiavel),
+essa ferramenta le por OCR e TEM uma taxa de erro real e conhecida.
+Confira SEMPRE, linha por linha, contra o PDF original antes de lancar
+qualquer valor gerado por ela num fechamento contabil ou declaracao.
+Quem usa a ferramenta e responsavel por essa conferencia.
+
+LICENCA
+--------
+Este programa e livre pra usar e repassar pra quem voce quiser, inclusive
+em outro escritorio de contabilidade. Termos completos (licenca MIT) no
+arquivo LICENSE.txt, nesta mesma pasta. O motor de OCR embutido
+(Tesseract) e software livre, licenca Apache 2.0.
+
+APOIE O PROJETO
+-----------------
+Se essa ferramenta te ajudou, um apoio via Pix e bem-vindo (nao e
+obrigatorio, o programa continua gratuito de qualquer forma):
+
+Chave Pix: jean.vieira@hotmail.com
+
+Pagina do projeto no GitHub:
+https://github.com/jeanvieir4/conversor-pdf-para-ofx
+
+Duvidas ou extrato digitalizado de banco nao suportado: Jean Vieira
+(49) 99907-9884 - jean.vieira@hotmail.com

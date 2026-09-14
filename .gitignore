@@ -17,3 +17,8 @@ __pycache__/
 # Saida do PyInstaller
 build/
 dist/
+
+# Binarios do Tesseract-OCR (motor de OCR, ~70MB, terceiro) - baixados/
+# copiados localmente antes de empacotar o Conversor_OCR, nunca versionados
+# no git. Ver CONTEXTO_PROJETO.md pra reproduzir.
+OCR/vendor/

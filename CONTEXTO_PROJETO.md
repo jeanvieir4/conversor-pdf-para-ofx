@@ -233,18 +233,16 @@ pagina.
 - Sulcredi
 - Votorantim
 
-### Extrato digitalizado (PDF escaneado, sem texto) - NAO suportado, decisao deliberada
-Jean pediu OCR pra ler extrato escaneado (foto/scan sem camada de texto).
-Decisao (2026-09-11): NAO implementar. OCR erra numero com frequencia
-suficiente pra ser um risco serio numa ferramenta contabil - dois erros
-podem se cancelar e o saldo total ainda bater, com lancamentos individuais
-errados sem ninguem perceber. Jean confirmou que precisaria confiar no
-resultado sem conferir manualmente, o que tornaria esse risco inaceitavel.
-Se um PDF assim for enviado, o programa detecta (nenhuma pagina do PDF tem
+### Extrato digitalizado (PDF escaneado, sem texto) - ver secao "Conversor OCR"
+O Conversor_Extratos PRINCIPAL continua sem suportar isso (decisao
+mantida - ver por que na secao "Conversor OCR" mais abaixo). Quando um
+PDF assim e enviado, o programa detecta (nenhuma pagina do PDF tem
 texto extraivel - `page.extract_text()` vazio em todas) e gera um aviso
 especifico na aba Pendencias: "Esse PDF parece ser uma imagem escaneada...".
 Antes disso (ate a v1.3) esse caso caia no aviso generico de "banco nao
 identificado", que confundia (parecia layout novo, nao arquivo sem texto).
+A partir de 2026-09-14 existe uma FERRAMENTA SEPARADA (`Conversor_OCR`)
+pra esse caso - ver secao propria mais abaixo.
 
 ## Proximo passo
 
@@ -253,6 +251,132 @@ Quando o usuario mandar uma amostra completa (nao cortada) de algum desses
 identificar o padrao de linha pra data/descricao/valor/tipo, escrever
 `parse_<banco>` em `bancos.py`, adicionar o detector em `DETECTORES` no
 `converter.py`, testar e validar contra os totais do extrato.
+
+## Conversor OCR (ferramenta separada) - extrato digitalizado
+
+Historico: em 2026-09-11 o Jean pediu suporte a extrato digitalizado
+(foto/print do app do banco, sem texto no PDF) e a decisao foi NAO
+implementar - risco alto demais pra ferramenta contabil (ver secao
+"Extrato digitalizado" em "Status por banco"). Em 2026-09-14 ele voltou
+com um caso real (pastor mandou um extrato assim, gerado direto do app
+da Caixa) e pediu pra resolver "nem que seja uma versao separada do
+sistema". Decisao final: SIM, mas como ferramenta separada
+(`Conversor_OCR`), nunca misturada com o `Conversor_Extratos` principal
+- assim o risco de OCR fica isolado, e o conversor principal (confiavel,
+le texto nativo) continua intocado.
+
+### Por que e uma ferramenta a parte (nao um modo dentro do principal)
+- OCR tem uma taxa de erro real e residual que NAO da pra zerar por mais
+  que se ajuste parametro (testado: DPI, pre-processamento de contraste,
+  upscale de imagem - a melhor combinacao achada ainda deixa ~5% das
+  linhas com o sinal credito/debito indeterminado, num extrato real de
+  teste). Misturar isso no conversor principal arriscaria contaminar a
+  confianca de quem usa o fluxo normal (texto nativo, bem mais preciso).
+- O motor de OCR (Tesseract) e pesado (~70MB de binarios+dados so pro
+  essencial) - decisao do Jean foi embutir tudo num .exe so mesmo assim
+  (aceitando o .exe ficar grande, ~120MB), em vez de pedir instalacao
+  separada - ver [[feedback-console-vs-gui]] sobre o risco de antivirus
+  com pacotes grandes/muitos arquivos; aqui o risco existe mas foi aceito
+  conscientemente.
+
+### Arquitetura (pasta `OCR/`, isolada do resto do projeto)
+- `OCR/conversor_ocr.py`: script principal, mesmo padrao de UX do
+  console principal (mensagem de cabecalho, aceita PDFs arrastados ou
+  processa tudo da pasta, "Pressione Enter pra sair"). Reusa
+  `gerar_excel`/`NOMES_BANCO` de `converter.py` e `gerar_ofx` de
+  `ofx_export.py` via import (sys.path aponta pra pasta pai) - NUNCA
+  duplica nem altera essas funcoes.
+- `OCR/bancos_ocr.py`: parsers de OCR, um por layout de app bancario
+  (so tem `parse_caixa_app_ocr` por enquanto). Modulo SEPARADO do
+  `bancos.py` principal (nunca importa nem altera ele) porque trabalha
+  com texto reconhecido por OCR (sujeito a erro), nao com texto extraido
+  direto do PDF.
+- `OCR/vendor/tesseract/`: copia local dos binarios do Tesseract
+  (tesseract.exe + DLLs + tessdata/por.traineddata) usada pra empacotar
+  o .exe. NAO fica no git (`.gitignore`: `OCR/vendor/`) - pra reproduzir:
+  1. Baixar e instalar o Tesseract-OCR pra Windows (build UB-Mannheim,
+     https://github.com/UB-Mannheim/tesseract/wiki).
+  2. Copiar `tesseract.exe` + todos os `*.dll` de
+     `C:\Program Files\Tesseract-OCR\` pra `OCR/vendor/tesseract/`.
+  3. Copiar `tessdata\por.traineddata` pra
+     `OCR/vendor/tesseract/tessdata/` (so o portugues - nao precisa dos
+     outros ~100 idiomas nem do `osd.traineddata`, que sozinho tem 10MB).
+
+### Como o OCR e feito (tecnica - importante pra novos parsers)
+1. `PyMuPDF` (`fitz`) rasteriza cada pagina do PDF em imagem (300 DPI).
+2. A imagem e ampliada 2x (`Image.LANCZOS`) ANTES do OCR - melhora
+   bastante o reconhecimento de caracteres pequenos tipo o "C"/"D" colado
+   no valor (testado: reduziu linhas incertas de ~11% pra ~5%, mas
+   sozinho nao resolveu tudo - trade-off real, nao solucao magica).
+3. **NUNCA usar `pytesseract.image_to_string()` (texto corrido) pra
+   tabela.** O Tesseract as vezes le a tabela COLUNA POR COLUNA (todas
+   as datas juntas, depois todos os valores juntos) em vez de linha por
+   linha - embaralha completamente a correspondencia entre campos, e
+   pior, isso pode mudar ENTRE PAGINAS DO MESMO PDF (visto no extrato
+   real: paginas 1-3 vieram em blocos de coluna, pagina 4 veio linha por
+   linha corrida). A solucao e usar `pytesseract.image_to_data()` (retorna
+   a posicao x/y de cada palavra) e remontar as linhas pela posicao
+   (agrupar por proximidade vertical, ordenar por x dentro do grupo) -
+   ver `linhas_por_posicao()` em `bancos_ocr.py`. Mesmo principio do
+   `_texto_robusto_por_caracteres()` no `converter.py` (bug de texto
+   embaralhado do Cresol), so que a fonte aqui e OCR, nao pdfplumber.
+4. Cada parser de banco (ex: `parse_caixa_app_ocr`) trabalha em cima
+   dessas linhas ja remontadas, com um regex que casa
+   `data - hora doc historico [ruido] valor sinal saldo sinal` - o
+   "ruido" no meio (favorecido, CPF/CNPJ) e DELIBERADAMENTE IGNORADO
+   (decisao do Jean: nao vale o risco de desalinhar e colar o nome
+   errado numa transacao errada). Historico usa uma lista FECHADA de
+   categorias conhecidas (vocabulario observado no extrato real testado)
+   - historico fora da lista e descartado, nunca adivinhado.
+5. **Inferencia de sinal por delta de saldo**: quando o OCR nao consegue
+   ler o caractere C/D com confianca, o parser compara o saldo da linha
+   com o saldo da linha anterior na sequencia - se o delta bater com o
+   valor da transacao (tolerancia 0,02), usa o sinal do delta. Quando
+   NEM o OCR nem o delta confirmam, a transacao fica com tipo '?' - nunca
+   inventa um sinal.
+
+### Como o resultado sai marcado (nunca finge ser confiavel)
+- TODA transacao sai com a coluna Observacao preenchida "Gerado por OCR -
+  confira contra o extrato original antes de usar."
+- Transacoes com sinal indeterminado (tipo='?') saem com
+  "[A VERIFICAR - OCR]" na Observacao E com a LINHA INTEIRA destacada em
+  vermelho claro (`_destacar_linhas_incertas()` em `conversor_ocr.py` -
+  pos-processamento com openpyxl por cima do `gerar_excel` generico, sem
+  alterar ele).
+- Transacoes incertas NAO entram no `.ofx` - `gerar_ofx` trata qualquer
+  coisa != 'C' como debito (ver `ofx_export.py` linha ~88), entao passar
+  tipo='?' pra ele esconderia a incerteza dentro do arquivo que alimenta
+  o sistema contabil. O `conversor_ocr.py` filtra
+  (`transacoes_confiaveis = [t for t in transacoes if not t['incerta']]`)
+  antes de chamar `gerar_ofx`.
+
+### Validacao feita (extrato real, app da Caixa, 4 paginas)
+64 transacoes reconhecidas na 1a tentativa (DPI 300, sem upscale): 7
+incertas (~11%), saldo NAO bateu (calculado R$ 7.274,88 vs real
+R$ 8.938,58). Com upscale 2x: 58 transacoes (perdeu 6 - trade-off real,
+upscale melhora uns casos e piora outros), 3 incertas (~5%), saldo ainda
+nao bateu exato mas ficou bem mais perto. Conclusao: aceito como
+"rascunho pra conferir", NUNCA como resultado pronto pra usar - e assim
+que a ferramenta se apresenta (LEIA-ME e mensagens do console deixam
+isso explicito).
+
+### Escopo de bancos suportados
+So o extrato do APP da Caixa por enquanto (unico com amostra real
+testada). Regra de ouro reforcada aqui: NUNCA escrever parser de OCR
+pra um banco sem amostra real em maos - seria adivinhar o layout do app
+daquele banco, e o proprio caso da Caixa mostrou que OCR erra mesmo com
+amostra real testada; sem teste, o risco e maior ainda. Quando aparecer
+extrato digitalizado de outro banco, tratar como novo layout: escrever
+um novo `parse_<banco>_app_ocr` em `bancos_ocr.py`, adicionar o
+fingerprint em `DETECTORES_OCR`, validar batendo saldo, documentar aqui.
+
+### Distribuicao
+Mesmo fluxo do `Conversor_Extratos` (link estavel + releases arquivadas
+por versao - ver "Verificacao automatica de atualizacao"), mas como
+asset SEPARADO no mesmo repositorio (`Conversor_OCR.zip`), com seu
+proprio numero de versao. Pasta `Para_Equipe_OCR/` (analoga a
+`Para_Equipe/`) com `Conversor_OCR.exe` + `LEIA-ME.txt` proprio
+(bem mais extenso em avisos que o do conversor principal) + `LICENSE.txt`.
 
 ## Interface grafica (GUI) - em teste
 
