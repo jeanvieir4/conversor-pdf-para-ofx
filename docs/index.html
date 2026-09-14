@@ -596,6 +596,36 @@
   </section>
 
   <section>
+    <h2>Extrato digitalizado (foto/print do app do banco)</h2>
+    <p>
+      Esse conversor precisa de um PDF com texto de verdade dentro (o
+      extrato "de verdade" gerado pelo banco). Se você tiver só uma
+      imagem escaneada, foto ou print exportado do aplicativo do banco
+      sem texto selecionável, esse programa não processa — em vez disso,
+      existe uma <strong>ferramenta separada</strong>, o
+      <strong>Conversor OCR</strong>, feita especificamente pra esse
+      caso.
+    </p>
+    <p>
+      Ela lê a imagem por OCR (reconhecimento óptico de caracteres), o
+      que tem uma taxa de erro real — por isso toda planilha gerada por
+      ela vem marcada <strong>"Gerado por OCR - confira antes de
+      usar"</strong>, e os lançamentos onde o crédito/débito não pôde
+      ser confirmado saem destacados em vermelho e ficam de fora do
+      .ofx. Hoje só suporta o extrato exportado pelo app da Caixa
+      Econômica Federal — mande o seu se for de outro banco pra eu
+      adicionar suporte.
+    </p>
+    <div class="download-cta" style="margin-top:1rem">
+      <div class="file-info">
+        <span class="file-name">Conversor_OCR.zip</span>
+        <span class="file-meta">.exe (~120MB, motor de OCR embutido) + LEIA-ME + LICENSE · Windows</span>
+      </div>
+      <a class="btn-download" href="https://github.com/jeanvieir4/conversor-pdf-para-ofx/releases/download/ocr-1.0/Conversor_OCR.zip" target="_blank" rel="noopener noreferrer">Baixar o Conversor OCR &darr;</a>
+    </div>
+  </section>
+
+  <section>
     <h2>Responsabilidade</h2>
     <p>
       Ferramenta oferecida como está, gratuita, sem garantia. Ela agiliza a
@@ -654,7 +684,7 @@
     .then(function(r){ return r.json(); })
     .then(function(releases){
       var arquivadas = releases.filter(function(r){
-        return r.tag_name !== '1.0' && r.assets && r.assets.length > 0;
+        return r.tag_name !== '1.0' && !r.tag_name.startsWith('ocr') && r.assets && r.assets.length > 0;
       });
       if (!arquivadas.length) {
         lista.innerHTML = '<p class="versoes-vazio">Nenhuma versão arquivada ainda.</p>';
