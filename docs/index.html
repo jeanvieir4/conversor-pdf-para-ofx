@@ -477,6 +477,21 @@
     </div>
   </details>
 
+  <div class="callout" style="margin-top:1.5rem">
+    <h2>Extrato digitalizado (foto/print do app do banco)?</h2>
+    <p>
+      Esse conversor precisa de um PDF com texto de verdade dentro. Se
+      você tiver só uma imagem escaneada, foto ou print exportado do
+      aplicativo do banco sem texto selecionável, use a ferramenta
+      separada <strong>Conversor OCR</strong> em vez desta — ela lê por
+      OCR (taxa de erro real, toda planilha sai marcada pra conferência)
+      e hoje só suporta o extrato do app da Caixa Econômica Federal.
+    </p>
+    <p style="margin-top:0.8rem">
+      <a href="https://github.com/jeanvieir4/conversor-pdf-para-ofx/releases/download/ocr-1.0/Conversor_OCR.zip" target="_blank" rel="noopener noreferrer" style="font-weight:600">Baixar o Conversor OCR (.exe, ~120MB) &darr;</a>
+    </p>
+  </div>
+
   <div class="ledger">
     <div class="ledger-label">
       <span>extrato.xlsx&nbsp;+&nbsp;extrato_Sicoob.ofx</span>
@@ -593,36 +608,6 @@
       listado na aba <strong>Pendências</strong> da planilha, e o restante
       dos extratos é processado normalmente.
     </p>
-  </section>
-
-  <section>
-    <h2>Extrato digitalizado (foto/print do app do banco)</h2>
-    <p>
-      Esse conversor precisa de um PDF com texto de verdade dentro (o
-      extrato "de verdade" gerado pelo banco). Se você tiver só uma
-      imagem escaneada, foto ou print exportado do aplicativo do banco
-      sem texto selecionável, esse programa não processa — em vez disso,
-      existe uma <strong>ferramenta separada</strong>, o
-      <strong>Conversor OCR</strong>, feita especificamente pra esse
-      caso.
-    </p>
-    <p>
-      Ela lê a imagem por OCR (reconhecimento óptico de caracteres), o
-      que tem uma taxa de erro real — por isso toda planilha gerada por
-      ela vem marcada <strong>"Gerado por OCR - confira antes de
-      usar"</strong>, e os lançamentos onde o crédito/débito não pôde
-      ser confirmado saem destacados em vermelho e ficam de fora do
-      .ofx. Hoje só suporta o extrato exportado pelo app da Caixa
-      Econômica Federal — mande o seu se for de outro banco pra eu
-      adicionar suporte.
-    </p>
-    <div class="download-cta" style="margin-top:1rem">
-      <div class="file-info">
-        <span class="file-name">Conversor_OCR.zip</span>
-        <span class="file-meta">.exe (~120MB, motor de OCR embutido) + LEIA-ME + LICENSE · Windows</span>
-      </div>
-      <a class="btn-download" href="https://github.com/jeanvieir4/conversor-pdf-para-ofx/releases/download/ocr-1.0/Conversor_OCR.zip" target="_blank" rel="noopener noreferrer">Baixar o Conversor OCR &darr;</a>
-    </div>
   </section>
 
   <section>
