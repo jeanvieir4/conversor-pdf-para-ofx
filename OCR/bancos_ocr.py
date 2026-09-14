@@ -162,7 +162,11 @@ def parse_caixa_app_ocr(linhas):
             obs = ('[A VERIFICAR - OCR] Credito/debito nao pode ser confirmado. '
                    'Nao entra no .ofx - confira no extrato original e lance manualmente se for o caso.')
         else:
-            obs = 'Gerado por OCR - confira contra o extrato original antes de usar.'
+            # obs fica vazio nas confiaveis de proposito: esse campo tambem vira o
+            # MEMO do .ofx (ver ofx_export.py) - um aviso generico repetido em toda
+            # linha so polui o arquivo financeiro. O aviso de "gerado por OCR" ja
+            # fica uma vez so, na aba Pendencias (ver `aviso` no fim da funcao).
+            obs = ''
 
         transacoes.append({
             'data': t['data'], 'historico': t['historico'], 'valor': t['valor'],

@@ -17,11 +17,11 @@ que parecem corretos - testado num extrato real, uma fatia das linhas
 que nao da pra confirmar com certeza.
 
 Por isso, TODA planilha gerada por essa ferramenta:
-- Vem com a coluna "Observacao" marcada "Gerado por OCR - confira
-  contra o extrato original antes de usar" em toda linha;
+- Vem com um aviso na aba "Pendencias" avisando que foi lida por OCR e
+  pedindo pra conferir tudo contra o extrato original;
 - As linhas onde o credito/debito ficou incerto vem destacadas em
-  VERMELHO e marcadas "[A VERIFICAR - OCR]" - essas NAO entram no
-  arquivo .ofx (nao da pra mandar um lancamento com sinal desconhecido
+  VERMELHO e marcadas "[A VERIFICAR - OCR]" na coluna Observacao - essas
+  NAO entram no arquivo .ofx (nao da pra mandar um lancamento com sinal desconhecido
   pro sistema contabil);
 - Voce PRECISA conferir cada extrato gerado por essa ferramenta contra
   o PDF original antes de usar em qualquer fechamento ou declaracao.
