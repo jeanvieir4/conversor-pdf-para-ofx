@@ -233,6 +233,19 @@ pagina.
 - Sulcredi
 - Votorantim
 
+### Extrato digitalizado (PDF escaneado, sem texto) - NAO suportado, decisao deliberada
+Jean pediu OCR pra ler extrato escaneado (foto/scan sem camada de texto).
+Decisao (2026-09-11): NAO implementar. OCR erra numero com frequencia
+suficiente pra ser um risco serio numa ferramenta contabil - dois erros
+podem se cancelar e o saldo total ainda bater, com lancamentos individuais
+errados sem ninguem perceber. Jean confirmou que precisaria confiar no
+resultado sem conferir manualmente, o que tornaria esse risco inaceitavel.
+Se um PDF assim for enviado, o programa detecta (nenhuma pagina do PDF tem
+texto extraivel - `page.extract_text()` vazio em todas) e gera um aviso
+especifico na aba Pendencias: "Esse PDF parece ser uma imagem escaneada...".
+Antes disso (ate a v1.3) esse caso caia no aviso generico de "banco nao
+identificado", que confundia (parecia layout novo, nao arquivo sem texto).
+
 ## Proximo passo
 
 Quando o usuario mandar uma amostra completa (nao cortada) de algum desses

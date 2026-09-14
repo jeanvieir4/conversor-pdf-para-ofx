@@ -22,7 +22,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '1.3'
+VERSAO_ATUAL = '1.4'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -189,8 +189,14 @@ def processar_pdf(caminho_pdf, pasta_saida):
     total = 0
     for banco, texto in blocos:
         if banco is None:
-            avisos.append(('(banco nao identificado)',
-                            'Um trecho do PDF nao bateu com nenhum layout de banco conhecido e foi ignorado.'))
+            if not texto.strip():
+                avisos.append(('(sem texto no PDF)',
+                                'Esse PDF parece ser uma imagem escaneada (sem nenhum texto '
+                                'selecionavel). O programa nao le extrato digitalizado, so PDF '
+                                'gerado digitalmente pelo banco.'))
+            else:
+                avisos.append(('(banco nao identificado)',
+                                'Um trecho do PDF nao bateu com nenhum layout de banco conhecido e foi ignorado.'))
             continue
         parser = BANK_PARSERS.get(banco)
         if not parser:
