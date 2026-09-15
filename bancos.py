@@ -273,7 +273,54 @@ def _parse_cresol_colmeia(texto):
     return out, None
 
 
+def _parse_cresol_consolidado_diario(texto):
+    """Terceiro layout do Cresol - tambem tem o cabecalho 'EXTRATO
+    CONSOLIDADO DE CONTA CORRENTE' (mesmo titulo do layout Colmeia), mas a
+    estrutura da linha e bem mais simples: cada lancamento vem inteiro
+    numa unica linha, sem quebrar categoria/detalhe/valor em linhas
+    separadas:
+      '03/08/2026 PIX CREDITO DE: FERNANDA DOMINGUES S - 01/08 220,00 C'
+    E 'SALDO ANTERIOR' aparece uma vez por DIA (nao so no inicio do
+    periodo), mostrando o saldo de abertura daquele dia - nao e
+    lancamento, so o Colmeia usa 'SALDO ANT.:' (abreviado, com ponto e
+    dois pontos); esse aqui usa 'SALDO ANTERIOR' por extenso - e esse o
+    sinal usado pra rotear entre os dois em `parse_cresol` (ver mais
+    abaixo), nunca os dois aparecem juntos no mesmo extrato.
+    Termina com um bloco de resumo '(=)SALDO: ...' e depois
+    'LANCAMENTOS FUTUROS/PENDENTES' (parcelas/faturas ainda nao
+    lancadas, sem 'C'/'D' no final da linha) - tudo isso e ignorado.
+    Validado com extrato real: 113 lancamentos, saldo do periodo inicial
+    (49.452,12) + creditos - debitos bateu exato com o saldo final
+    declarado '(=)SALDO: 44.849,73'.
+    """
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d.]+,\d{2})\s+([CD])$')
+    out = []
+    parar = False
+    for l in _linhas_uteis(texto):
+        l = l.strip()
+        if '(=)SALDO' in l or 'LANCAMENTOS FUTUROS' in l.upper():
+            parar = True
+        if parar:
+            continue
+        m = padrao.match(l)
+        if not m:
+            continue
+        data_str, desc, valor_str, tipo = m.groups()
+        desc = desc.strip()
+        if desc.upper() == 'SALDO ANTERIOR':
+            continue
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        out.append({'data': dt, 'historico': desc, 'valor': _dec(valor_str), 'tipo': tipo, 'obs': ''})
+    return out, None
+
+
 def parse_cresol(texto):
+    if 'SALDO ANT.:' not in texto and 'EXTRATO CONSOLIDADO DE CONTA CORRENTE' in texto.upper():
+        return _parse_cresol_consolidado_diario(texto)
     if 'EXTRATO CONSOLIDADO DE CONTA CORRENTE' in texto.upper() or 'sistema.confesol' in texto.lower():
         return _parse_cresol_colmeia(texto)
     linhas = _linhas_uteis(texto)

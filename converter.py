@@ -22,7 +22,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '1.4'
+VERSAO_ATUAL = '1.5'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -36,8 +36,16 @@ DETECTORES = [
     # cresol vem antes do bradesco: o fallback frouxo do bradesco ('bradesco' in
     # texto) da falso positivo quando um extrato de OUTRO banco tem um boleto
     # pago pra "Bradesco Seguros" ou similar (nome de terceiro, nao do banco).
+    # Isso e especialmente critico pro Cresol porque o nome do banco so
+    # aparece no cabecalho da 1a pagina - as paginas seguintes (que repetem
+    # so "EXTRATO CONSOLIDADO DE CONTA CORRENTE") ficavam sem nenhum sinal
+    # forte de cresol e podiam cair de vez no fallback frouxo do bradesco
+    # (ex.: um pagamento de titulo pra "BRADESCO SEGUROS" na pagina 2),
+    # quebrando o extrato em dois blocos no meio de um unico banco. Por
+    # isso o titulo da pagina tambem conta como sinal de cresol aqui.
     ('cresol',    lambda t: 'Consulta Posi\u00e7\u00e3o consolidada' in t or 'CRESOL' in t.upper()
-                              or 'sistema.confesol' in t.lower()),
+                              or 'sistema.confesol' in t.lower()
+                              or 'EXTRATO CONSOLIDADO DE CONTA CORRENTE' in t.upper()),
     ('bradesco',  lambda t: ('Lan\u00e7amento' in t and 'Dcto.' in t and 'D\u00e9bito' in t)
                               or 'Nome do usu\u00e1rio:' in t or ('bradesco' in t.lower())),
     ('itau',      lambda t: 'extrato mensal' in t.lower() and ('ita\u00fa' in t.lower() or 'B001A' in t)),

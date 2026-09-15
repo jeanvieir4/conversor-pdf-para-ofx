@@ -130,7 +130,7 @@ pagina.
   pra CDB e nao contam como movimento de conta corrente conforme o proprio
   extrato)
 - UniCred
-- Cresol - dois formatos completamente diferentes, `parse_cresol` detecta
+- Cresol - TRES formatos completamente diferentes, `parse_cresol` detecta
   qual e e roteia pro parser certo:
   1. Extrato tradicional (descricao as vezes quebra em 2 linhas com a linha
      de data+valor no meio).
@@ -156,16 +156,44 @@ pagina.
      cai bem na quebra de pagina). Ver `EXTRATO CONSOLIDADO...pdf` usado
      pra validar - saldo inicial + soma dos lancamentos bateu exatamente
      com o saldo final declarado no extrato (13.474,42).
-  IMPORTANTE: por causa desse formato novo, o detector do Bradesco em
-  `DETECTORES` (`converter.py`) tinha um fallback frouxo (`'bradesco' in
-  texto.lower()`) que dava falso positivo quando o extrato de OUTRO banco
-  tinha um boleto pago pra "Bradesco Seguros" (nome de terceiro, nao do
-  banco). Corrigido colocando `cresol` antes de `bradesco` na lista
-  `DETECTORES` (ordem importa - `identificar_banco` para no primeiro
-  detector que bate). Se aparecer um bug parecido com outro banco no
-  futuro, suspeitar do mesmo padrao: fallback frouxo tipo `'nome_banco' in
-  texto.lower()` pegando mencao a esse banco como texto livre dentro da
-  descricao de uma transacao de outro banco.
+  3. `_parse_cresol_consolidado_diario` (v1.5) - MESMO titulo de pagina
+     que o formato 2 ("EXTRATO CONSOLIDADO DE CONTA CORRENTE"), mas
+     estrutura de linha bem mais simples - cada lancamento inteiro numa
+     unica linha, sem quebrar categoria/detalhe/valor:
+     `03/08/2026 PIX CREDITO DE: FERNANDA DOMINGUES S - 01/08 220,00 C`.
+     "SALDO ANTERIOR" aparece uma vez por DIA (nao so no inicio do
+     periodo) mostrando o saldo de abertura daquele dia - ignorado, nao e
+     lancamento. Termina com um bloco `(=)SALDO: ...` seguido de
+     `LANCAMENTOS FUTUROS/PENDENTES` (parcelas ainda nao lancadas, sem
+     C/D no final da linha) - tudo isso e cortado. Distinguido do formato
+     2 pela AUSENCIA de `SALDO ANT.:` (abreviado, com ponto e dois
+     pontos) - o formato 2 sempre tem essa string exata (e o proprio
+     regex dele depende disso), o formato 3 usa "SALDO ANTERIOR" por
+     extenso. Validado com extrato real: 113 lancamentos, saldo do
+     periodo inicial (49.452,12) + creditos - debitos bateu exato com o
+     saldo final declarado (44.849,73).
+  IMPORTANTE (bug real encontrado e corrigido na v1.5): o formato 3 expos
+  uma variante nova do problema de falso positivo do Bradesco. O nome do
+  banco ("CRESOL") so aparece no cabecalho da 1a pagina do PDF - as
+  paginas seguintes repetem so o titulo "EXTRATO CONSOLIDADO DE CONTA
+  CORRENTE", sem a palavra "CRESOL". Como `identificar_banco` roda
+  PAGINA POR PAGINA (ver `extrair_blocos_por_banco`), uma pagina sem
+  nenhum sinal forte de cresol podia cair no fallback frouxo do Bradesco
+  (`'bradesco' in texto.lower()`) se tivesse, por exemplo, um pagamento
+  de titulo pra "BRADESCO SEGUROS" (nome de terceiro) - isso quebrava o
+  extrato em DOIS blocos no meio de um unico banco (paginas 2+ processadas
+  como se fossem Bradesco, perdendo a maioria dos lancamentos: 45 de 113
+  na amostra real). Corrigido adicionando `'EXTRATO CONSOLIDADO DE CONTA
+  CORRENTE' in t.upper()` como mais um sinal do detector `cresol` em
+  `DETECTORES` (converter.py) - essa frase aparece em TODAS as paginas
+  desse tipo de extrato Cresol (formatos 2 e 3), entao agora toda pagina
+  e identificada como cresol diretamente, sem depender de heranca de
+  pagina anterior nem competir com o fallback do Bradesco. Se aparecer
+  um bug parecido com outro banco no futuro, suspeitar do mesmo padrao:
+  fallback frouxo tipo `'nome_banco' in texto.lower()` pegando mencao a
+  esse banco como texto livre dentro da descricao de uma transacao de
+  outro banco - E que o detector do banco correto so bate em ALGUMAS
+  paginas do extrato (nao em todas), pela combinacao dos dois.
 - Ailos / ViaCredi (mesmo sistema, cooperativa aparece no cabecalho)
 - Banco do Brasil - TRES formatos, `parse_bb` detecta qual e:
   1. Formato atual (com colunas "Ag. origem"/"Lote" no cabecalho) - excluir
