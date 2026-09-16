@@ -124,7 +124,36 @@ pagina.
 ## Status por banco (atualizado nesta sessao)
 
 ### Validados com confianca total (bate exatamente com os totais do extrato)
-- Sicoob
+- Sicoob - CUIDADO com valores de milhar (>= 1.000,00): a coluna do valor
+  fica mais larga no PDF e o pdfplumber perde o alinhamento vertical com a
+  linha "DD/MM descricao" de tres jeitos diferentes vistos no MESMO
+  extrato real (bug encontrado e corrigido na v1.6, reportado pelo Jean -
+  valores grandes sumindo do .ofx sem nenhum aviso):
+  1. Só o C/D "estoura" pra linha seguinte, sozinho:
+     `'05/08 PIX EMIT.OUTRA IF 4.554,00'` / `'D'`.
+  2. O VALOR inteiro fica deslocado pra ANTES da linha data+descricao
+     (bloco de 3 linhas): `'1.200,00'` / `'03/08 PIX RECEB.OUTRA IF'` /
+     `'C'`. Testado com `layout=True` no pdfplumber tambem - o problema
+     persiste, entao NAO e ordem de leitura errada, e o proprio PDF que
+     tem esse campo numa posicao vertical ligeiramente diferente quando o
+     numero fica mais largo.
+  3. `parse_sicoob` reconstroi os dois casos ANTES de aplicar o regex
+     principal, juntando as linhas fragmentadas numa so.
+  - "DEP.CHEQUE BLOQ.XD" (deposito de cheque ainda em compensacao) nao usa
+    C/D no final da linha, usa um asterisco (`'6.254,00*'`). ARMADILHA:
+    parece um credito (e um deposito), mas NAO e - o extrato so soma esse
+    valor no saldo quando aparece depois um lancamento separado
+    "LIBER.DEPOSITO BLOQ" (esse sim com C normal) com o MESMO valor.
+    Contar os dois como credito duplica o dinheiro - foi exatamente isso
+    que quebrou a reconciliacao de saldo na v1.6 antes da correcao final
+    (excesso de credito batendo exatamente com a soma dos "BLOQ.XD"
+    daquele extrato). Corrigido ignorando toda linha com asterisco (igual
+    as linhas de SALDO) - o credito real chega via "LIBER.DEPOSITO BLOQ"
+    normalmente. "SALDO BLOQ.ANTERIOR" tambem usa asterisco e ja era
+    ignorada por outro motivo (esta na lista `excluir`).
+  Validado com extrato real de 251 lancamentos: saldo anterior (35.715,72)
+  + creditos - debitos bateu exato com o saldo final declarado
+  (88.070,80).
 - Caixa Economica Federal (Gerenciador Caixa)
 - Itau (excluir linhas de "Aplic Aut Mais", que sao varredura automatica
   pra CDB e nao contam como movimento de conta corrente conforme o proprio

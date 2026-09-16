@@ -34,11 +34,63 @@ def parse_sicoob(texto):
     fim = date(*map(int, reversed(m_periodo.group(2).split('/'))))
 
     padrao = re.compile(r'^(\d{2})/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})([CD])$')
+    # Quando o valor tem separador de milhar (>= 1.000,00), a coluna do valor
+    # fica mais larga e o pdfplumber as vezes perde o alinhamento vertical
+    # com a linha "DD/MM descricao" - visto de duas formas diferentes no
+    # mesmo extrato:
+    #   a) so o C/D "estoura" pra linha seguinte, sozinho:
+    #        '05/08 PIX EMIT.OUTRA IF 4.554,00'
+    #        'D'
+    #   b) o VALOR inteiro fica deslocado pra ANTES da linha data+descricao,
+    #      com o C/D ainda depois (bloco de 3 linhas):
+    #        '1.200,00'
+    #        '03/08 PIX RECEB.OUTRA IF'
+    #        'C'
+    # Sem reconstruir isso a linha nao bate no `padrao` e o lancamento
+    # inteiro era descartado em silencio - bug real reportado pelo Jean
+    # (valores >1.000 sumindo do .ofx).
+    padrao_sem_cd = re.compile(r'^\d{2}/\d{2}\s+.+?\s+[\d\.]+,\d{2}$')
+    padrao_data_desc_sem_valor = re.compile(r'^\d{2}/\d{2}\s+\S.*$')
+    padrao_valor_sozinho = re.compile(r'^[\d\.]+,\d{2}$')
+    linhas_brutas = _linhas_uteis(texto)
+    linhas = []
+    i = 0
+    while i < len(linhas_brutas):
+        l = linhas_brutas[i].strip()
+        # caso (b): valor sozinho, seguido de "DD/MM descricao" sem valor, seguido de C/D sozinho
+        if (padrao_valor_sozinho.match(l) and i + 2 < len(linhas_brutas)
+                and padrao_data_desc_sem_valor.match(linhas_brutas[i + 1].strip())
+                and not padrao_sem_cd.match(linhas_brutas[i + 1].strip())
+                and linhas_brutas[i + 2].strip() in ('C', 'D')):
+            linhas.append(f'{linhas_brutas[i + 1].strip()} {l}{linhas_brutas[i + 2].strip()}')
+            i += 3
+            continue
+        # caso (a): "DD/MM ... valor" (sem C/D) seguido de C/D sozinho
+        if padrao_sem_cd.match(l) and i + 1 < len(linhas_brutas) and linhas_brutas[i + 1].strip() in ('C', 'D'):
+            linhas.append(l + linhas_brutas[i + 1].strip())
+            i += 2
+            continue
+        linhas.append(l)
+        i += 1
+
     excluir = ('SALDO ANTERIOR', 'SALDO BLOQ.ANTERIOR', 'SALDO DO DIA')
-    linhas = _linhas_uteis(texto)
+    # "DEP.CHEQUE BLOQ.XD" (cheque em compensacao) nao usa C/D no final, usa
+    # um asterisco ('6.254,00*') - e so um AVISO de que o deposito chegou
+    # mas ainda esta bloqueado, NAO e credito ainda (nao entra no saldo do
+    # dia declarado no extrato). O credito real so acontece quando aparece
+    # "LIBER.DEPOSITO BLOQ" (lancamento normal, com C), tipicamente uns
+    # dias depois, com o MESMO valor - contar os dois como credito duplica
+    # o dinheiro (confirmado no extrato real: DEP.CHEQUE BLOQ.1D de
+    # 6.254,00 e 231,00 tem LIBER.DEPOSITO BLOQ correspondente com o mesmo
+    # valor depois - contar ambos estourava o saldo em exatamente 6.485,00,
+    # a soma dos dois). Por isso as linhas com asterisco sao ignoradas
+    # aqui, igual as linhas de SALDO.
+    padrao_asterisco = re.compile(r'^\d{2}/\d{2}\s+.+?\s+[\d\.]+,\d{2}\*$')
     out = []
     for l in linhas:
-        mm_ = padrao.match(l.strip())
+        if padrao_asterisco.match(l):
+            continue
+        mm_ = padrao.match(l)
         if not mm_:
             continue
         dd, mm, desc, valor_str, tipo = mm_.groups()
