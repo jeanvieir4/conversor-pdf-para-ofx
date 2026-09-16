@@ -154,6 +154,28 @@ pagina.
   Validado com extrato real de 251 lancamentos: saldo anterior (35.715,72)
   + creditos - debitos bateu exato com o saldo final declarado
   (88.070,80).
+  DOIS layouts diferentes, `parse_sicoob` detecta qual e pela presenca da
+  linha "PERIODO:" no cabecalho:
+  1. `_parse_sicoob_curto` (o de cima) - linha "DD/MM descricao valorCD"
+     (sem ano na data, sem coluna Documento), precisa da linha
+     "PERIODO: DD/MM/AAAA - DD/MM/AAAA" pra saber o ano de cada DD/MM.
+  2. `_parse_sicoob_detalhado` (v1.8) - visto noutra cooperativa do
+     sistema (SICOOB VALE DOS PINHAIS). Nao tem linha "PERIODO:" (usa
+     "DD/MM/AAAA EXTRATO CONTA CORRENTE HH:MM:SS" como data de emissao).
+     Linha de lancamento tem o ANO completo na data e uma coluna
+     "Documento" a mais (numero ou a palavra "Pix") entre data e
+     historico: "DD/MM/AAAA [documento] Historico ValorCD". Linhas de
+     detalhe complementar depois (REM.:, "Recebimento Pix", nome do
+     favorecido, CPF mascarado, "Dizimo") sao ignoradas, mesma decisao
+     usada no Conversor OCR - nao vale o risco de juntar errado.
+     Lancamentos de "RDC AUTOMATICO" (aplicacao automatica) SAO contados
+     normalmente (debito ao aplicar, credito ao resgatar) - diferente do
+     "Aplic Aut Mais" do Itau (ver abaixo), aqui e a propria conta
+     corrente que movimenta esse dinheiro. Validado com extrato real: 89
+     lancamentos, saldo anterior (20.456,14) + creditos - debitos bateu
+     exato com o "SALDO EM CONTA" do resumo final (5.494,91) - NAO com o
+     "SALDO DISPONIVEL" (24.766,37), que soma tambem o RDC automatico
+     (produto separado, fora do escopo de conta corrente).
 - Caixa Economica Federal (Gerenciador Caixa)
 - Itau (excluir linhas de "Aplic Aut Mais", que sao varredura automatica
   pra CDB e nao contam como movimento de conta corrente conforme o proprio

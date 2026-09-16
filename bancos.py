@@ -26,7 +26,11 @@ def _linhas_uteis(texto):
 # ---------------------------------------------------------------------------
 # SICOOB
 # ---------------------------------------------------------------------------
-def parse_sicoob(texto):
+def _parse_sicoob_curto(texto):
+    """Primeiro layout do Sicoob suportado - linha de transacao curta
+    'DD/MM descricao valorCD' (sem ano na data, sem coluna Documento
+    separada). Precisa da linha 'PERIODO: DD/MM/AAAA - DD/MM/AAAA' no
+    cabecalho pra saber o ano de cada DD/MM."""
     m_periodo = re.search(r'PER[ÍI]ODO:\s*(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}/\d{2}/\d{4})', texto)
     if not m_periodo:
         return [], 'Sicoob: nao encontrei a linha PERIODO: no extrato, ano das datas fica sem referencia segura'
@@ -105,6 +109,57 @@ def parse_sicoob(texto):
         valor = _dec(valor_str)
         out.append({'data': dt, 'historico': desc.strip(), 'valor': valor, 'tipo': tipo, 'obs': ''})
     return out, None
+
+
+def _parse_sicoob_detalhado(texto):
+    """Segundo layout do Sicoob (v1.8) - visto num extrato de outra
+    cooperativa do sistema (SICOOB VALE DOS PINHAIS, diferente da
+    cooperativa do layout curto acima). Nao tem a linha 'PERIODO:' no
+    cabecalho (usa 'DD/MM/AAAA EXTRATO CONTA CORRENTE HH:MM:SS' como data
+    de emissao). Cada lancamento vem numa linha com o ANO completo na
+    data e uma coluna "Documento" (numero ou a palavra "Pix") entre a
+    data e o historico:
+      'DD/MM/AAAA [documento] Historico ValorCD'
+    Linhas de detalhe complementar depois (REM.:, "Recebimento Pix",
+    nome do favorecido, CPF mascarado, "Dizimo" etc.) sao IGNORADAS -
+    mesma decisao ja usada noutros parsers (Conversor OCR, Cresol): nao
+    vale o risco de juntar errado. "SALDO DO DIA" (aparece varias vezes,
+    um snapshot por dia) e "SALDO ANTERIOR"/"SALDO BLOQUEADO ANTERIOR"
+    sao ignorados, nao sao lancamento.
+    Lancamentos de "RDC AUTOMATICO" (aplicacao automatica) SAO contados
+    normalmente (debito ao aplicar, credito ao resgatar) - diferente do
+    "Aplic Aut Mais" do Itau, aqui e a propria conta corrente que
+    movimenta esse dinheiro, entao faz parte do saldo dela.
+    Validado com extrato real: 89 lancamentos, saldo anterior (20.456,14)
+    + creditos - debitos bateu exato com o "SALDO EM CONTA" declarado no
+    resumo final (5.494,91) - NAO com o "SALDO DISPONIVEL" (24.766,37),
+    que soma tambem o RDC automatico (produto separado, fora do escopo
+    de conta corrente).
+    """
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d\.]+,\d{2})([CD])$')
+    excluir = ('SALDO ANTERIOR', 'SALDO BLOQUEADO ANTERIOR', 'SALDO DO DIA')
+    out = []
+    for l in _linhas_uteis(texto):
+        l = l.strip()
+        m = padrao.match(l)
+        if not m:
+            continue
+        data_str, desc, valor_str, tipo = m.groups()
+        if any(desc.strip().upper().startswith(k) for k in excluir):
+            continue
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        out.append({'data': dt, 'historico': desc.strip(), 'valor': _dec(valor_str), 'tipo': tipo, 'obs': ''})
+    return out, None
+
+
+def parse_sicoob(texto):
+    if re.search(r'PER[ÍI]ODO:\s*\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}', texto):
+        return _parse_sicoob_curto(texto)
+    return _parse_sicoob_detalhado(texto)
 
 
 # ---------------------------------------------------------------------------
