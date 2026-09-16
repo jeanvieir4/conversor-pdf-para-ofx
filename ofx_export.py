@@ -22,6 +22,7 @@ COMPE_BANCO = {
     'santander': '0033',
     'sicredi': '0748',
     'bradesco': '0237',
+    'civia': '0085',  # Civia e uma cooperativa do Sistema Ailos - mesmo COMPE do Ailos
 }
 
 ACCTID_PADRAO = '00000'  # numero de conta nao e extraido do PDF; mesmo valor usado no arquivo de referencia

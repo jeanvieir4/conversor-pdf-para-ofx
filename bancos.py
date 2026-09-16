@@ -834,6 +834,42 @@ def parse_bradesco(texto):
     return out, None
 
 
+# ---------------------------------------------------------------------------
+# CIVIA (cooperativa do Sistema Ailos, COMPE 085 - ver ofx_export.py; layout
+# de relatorio diferente do Ailos/ViaCredi ja suportado, gerado pelo sistema
+# "Schema" - por isso parser proprio, nao reusa parse_ailos)
+# ---------------------------------------------------------------------------
+def parse_civia(texto):
+    """Extrato do Civia: cada lancamento numa unica linha
+    'DD/MM/AAAA Historico Documento D/C Valor [Saldo]' - Saldo so aparece
+    de vez em quando (nao em toda linha, parece um "snapshot" periodico,
+    nao um saldo corrente por lancamento) e nao e usado aqui. "Documento"
+    fica embutido dentro do historico (nao ha necessidade de separar - nao
+    aparece na planilha de qualquer forma). "SALDO ANTERIOR" tem formato
+    diferente (sem D/C, so data+valor) e nao e lancamento, so referencia.
+    Validado com extrato real: 94 lancamentos, saldo anterior (776,47) +
+    creditos - debitos bateu exato com o ultimo saldo mostrado (2.088,18).
+    """
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([CD])\s+([\d\.]+,\d{2})(?:\s+[\d\.]+,\d{2})?$')
+    padrao_saldo_anterior = re.compile(r'^\d{2}/\d{2}/\d{4}\s+SALDO ANTERIOR\s+[\d\.]+,\d{2}$')
+    out = []
+    for l in _linhas_uteis(texto):
+        l = l.strip()
+        if padrao_saldo_anterior.match(l):
+            continue
+        m = padrao.match(l)
+        if not m:
+            continue
+        data_str, desc, tipo, valor_str = m.groups()
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        out.append({'data': dt, 'historico': desc.strip(), 'valor': _dec(valor_str), 'tipo': tipo, 'obs': ''})
+    return out, None
+
+
 BANK_PARSERS = {
     'sicoob': parse_sicoob,
     'caixa': parse_caixa,
@@ -845,4 +881,5 @@ BANK_PARSERS = {
     'santander': parse_santander,
     'sicredi': parse_sicredi,
     'bradesco': parse_bradesco,
+    'civia': parse_civia,
 }

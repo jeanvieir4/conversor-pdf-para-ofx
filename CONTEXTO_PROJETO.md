@@ -224,6 +224,28 @@ pagina.
   outro banco - E que o detector do banco correto so bate em ALGUMAS
   paginas do extrato (nao em todas), pela combinacao dos dois.
 - Ailos / ViaCredi (mesmo sistema, cooperativa aparece no cabecalho)
+- Civia (v1.7) - cooperativa do Sistema Ailos (COMPE 085, mesmo do Ailos/
+  ViaCredi - ver `ofx_export.py`), mas com layout de relatorio proprio
+  (gerado pelo sistema "Schema", `parse_civia` separado, nao reusa
+  `parse_ailos`). A palavra "Civia" NUNCA aparece no texto do extrato -
+  o fingerprint em `DETECTORES` (converter.py) usa a combinacao
+  `'Conta/dv:' in t and 'Finalidade da Conta' in t`, especifica desse
+  layout. Cada lancamento vem numa unica linha "DD/MM/AAAA Historico
+  Documento D/C Valor [Saldo]" - Saldo so aparece esporadicamente (nao
+  serve pra validar linha a linha, so usado pra reconciliar o total).
+  "SALDO ANTERIOR" tem formato diferente (sem D/C) e e ignorado.
+  Validado com extrato real: 94 lancamentos, saldo anterior (776,47) +
+  creditos - debitos bateu exato com o ultimo saldo do extrato (2.088,18).
+  IMPORTANTE: o PDF de amostra tinha a estrutura interna malformada
+  (faltava o trailer/xref - erro "No /Root object" no pdfplumber), embora
+  abrisse normal em navegador. Isso motivou adicionar um FALLBACK em
+  `converter.py` (`_paginas_texto`): se `pdfplumber.open` falhar ao abrir
+  o arquivo inteiro (excecao, nao so pagina vazia), tenta de novo com
+  PyMuPDF (`fitz`), que reconstroi a xref na hora e e bem mais tolerante
+  a PDF malformado - beneficia qualquer banco, nao so o Civia. Limitacao:
+  no modo fallback nao tem como aplicar o fix de texto embaralhado do
+  Cresol (que depende de `page.chars`, exclusivo do pdfplumber) - nunca
+  precisamos dos dois ao mesmo tempo ate agora.
 - Banco do Brasil - TRES formatos, `parse_bb` detecta qual e:
   1. Formato atual (com colunas "Ag. origem"/"Lote" no cabecalho) - excluir
      linhas "BB Rende Facil", mesma logica do Itau.
@@ -285,7 +307,6 @@ pagina.
   Linhas incertas vem marcadas `[A VERIFICAR]` na coluna Observacao.
 
 ### Sem nenhuma amostra ainda (dos 14 bancos da carteira)
-- Banco Civia
 - Banrisul
 - Sulcredi
 - Votorantim

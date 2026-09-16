@@ -11,6 +11,7 @@ import glob
 import threading
 import urllib.request
 import pdfplumber
+import fitz
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill
 
@@ -22,7 +23,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '1.6'
+VERSAO_ATUAL = '1.7'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -55,6 +56,12 @@ DETECTORES = [
                               or 'Dia Lote Documento' in t),
     ('santander', lambda t: 'santander' in t.lower() or 'Extrato_PJ_A4' in t or 'BALP_UY' in t),
     ('sicredi',   lambda t: 'Sicredi' in t or 'Associado:' in t),
+    # Civia nao escreve o proprio nome em lugar nenhum do texto (extrato
+    # gerado pelo sistema "Schema", usado por varias cooperativas/bancos
+    # pequenos - visto no metadado 'author: schemaprd' do PDF, mas isso
+    # nao aparece no texto das paginas). Fingerprint por combinacao de
+    # campos do cabecalho, que sao bem especificos desse layout.
+    ('civia',     lambda t: 'Conta/dv:' in t and 'Finalidade da Conta' in t),
 ]
 
 
@@ -99,26 +106,51 @@ def _texto_robusto_por_caracteres(page):
 _FINGERPRINTS_TEXTO_EMBARALHADO = ('sistema.confesol/colmeia',)
 
 
+def _paginas_texto(caminho_pdf):
+    """Extrai o texto de cada pagina do PDF. Tenta pdfplumber primeiro (e
+    o unico que suporta o fallback de texto embaralhado acima, que depende
+    de page.chars). Se o arquivo tiver a estrutura interna malformada (ex:
+    trailer/xref incompletos - visto num extrato real que abria normal em
+    navegador mas o pdfplumber recusava com "No /Root object") e
+    pdfplumber nem conseguir ABRIR o arquivo, cai pro PyMuPDF (fitz), que
+    e bem mais tolerante a esse tipo de problema (os leitores de PDF em
+    geral reconstroem a xref table na hora quando ela falta ou esta
+    quebrada - fitz faz isso, pdfminer/pdfplumber nao). Nesse caso o
+    fallback de texto embaralhado fica indisponivel (nunca precisamos dos
+    dois ao mesmo tempo)."""
+    try:
+        with pdfplumber.open(caminho_pdf) as pdf:
+            paginas = []
+            for page in pdf.pages:
+                texto = page.extract_text() or ''
+                if any(fp in texto.lower() for fp in _FINGERPRINTS_TEXTO_EMBARALHADO):
+                    texto = _texto_robusto_por_caracteres(page)
+                paginas.append(texto)
+            return paginas
+    except Exception:
+        doc = fitz.open(caminho_pdf)
+        try:
+            return [page.get_text() for page in doc]
+        finally:
+            doc.close()
+
+
 def extrair_blocos_por_banco(caminho_pdf):
     """Agrupa paginas consecutivas do mesmo banco. Paginas sem cabecalho
     reconhecivel herdam o banco da pagina anterior (paginas de continuacao)."""
     blocos = []  # lista de (nome_banco, texto_concatenado)
     banco_atual = None
     texto_atual = []
-    with pdfplumber.open(caminho_pdf) as pdf:
-        for page in pdf.pages:
-            texto = page.extract_text() or ''
-            if any(fp in texto.lower() for fp in _FINGERPRINTS_TEXTO_EMBARALHADO):
-                texto = _texto_robusto_por_caracteres(page)
-            banco_pagina = identificar_banco(texto)
-            if banco_pagina and banco_pagina != banco_atual and texto_atual:
-                blocos.append((banco_atual, '\n'.join(texto_atual)))
-                texto_atual = []
-            if banco_pagina:
-                banco_atual = banco_pagina
-            texto_atual.append(texto)
-        if texto_atual:
+    for texto in _paginas_texto(caminho_pdf):
+        banco_pagina = identificar_banco(texto)
+        if banco_pagina and banco_pagina != banco_atual and texto_atual:
             blocos.append((banco_atual, '\n'.join(texto_atual)))
+            texto_atual = []
+        if banco_pagina:
+            banco_atual = banco_pagina
+        texto_atual.append(texto)
+    if texto_atual:
+        blocos.append((banco_atual, '\n'.join(texto_atual)))
     return blocos
 
 
@@ -140,6 +172,7 @@ NOMES_BANCO = {
     'sicoob': 'Sicoob', 'caixa': 'Caixa', 'itau': 'Itau', 'unicred': 'UniCred',
     'cresol': 'Cresol', 'ailos': 'Ailos_ViaCredi', 'bb': 'BancoDoBrasil',
     'santander': 'Santander', 'sicredi': 'Sicredi', 'bradesco': 'Bradesco',
+    'civia': 'Civia',
 }
 
 
