@@ -363,6 +363,19 @@ pagina.
   `_texto_sicredi_colunas_por_pagina` ja confirmou que e esse layout
   especifico, entao servem como fingerprint seguro mesmo sem a palavra
   "sicredi" aparecer na pagina.
+  SEGUNDO bug de deteccao (v2.0, mesmo padrao ja visto entre cresol/
+  bradesco): um extrato real (layout de valor unico, com "Associado:")
+  tinha uma linha "LIQUIDACAO BOLETO ... SANTANDER SANTA..." (nome do
+  beneficiario, nao o banco do extrato) - como o detector de `santander`
+  vinha ANTES de `sicredi` na lista `DETECTORES` e tambem usa um
+  fallback frouxo (`'santander' in texto.lower()`), a pagina inteira -
+  com as transacoes de verdade - ia pro banco errado, sobrando so as
+  paginas sem esse boleto especifico como sicredi. Corrigido movendo
+  `sicredi` pra ANTES de `santander` na lista (ordem importa -
+  `identificar_banco` para no primeiro detector que bate). Se aparecer
+  de novo com outro banco, o padrao e sempre o mesmo: dois detectores
+  com fallback frouxo tipo `'nome' in texto.lower()`, e o banco ERRADO
+  checado primeiro na lista.
 
 ### Funciona mas precisa de revisao humana ocasional
 - Santander: o texto extraido do PDF NAO tem coluna ou sinal confiavel de

@@ -24,7 +24,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '1.9'
+VERSAO_ATUAL = '2.0'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -55,7 +55,15 @@ DETECTORES = [
     ('ailos',     lambda t: 'AILOS' in t.upper() or 'VIACREDIALTOVALE' in t.upper() or 'VIACREDI' in t.upper()),
     ('bb',        lambda t: 'BB Rende F' in t or ('Ag. origem' in t and 'Lote' in t) or 'Dt. balancete' in t
                               or 'Dia Lote Documento' in t),
-    ('santander', lambda t: 'santander' in t.lower() or 'Extrato_PJ_A4' in t or 'BALP_UY' in t),
+    # sicredi vem antes do santander: os dois tem fallback frouxo
+    # ('nome_banco' in texto.lower()) que da falso positivo quando um
+    # extrato de OUTRO banco tem um boleto ou transferencia mencionando
+    # o nome do outro banco como texto livre (mesmo padrao ja visto entre
+    # cresol/bradesco). Bug real: um extrato do Sicredi tinha uma linha
+    # "LIQUIDACAO BOLETO ... SANTANDER SANTA..." (nome do beneficiario, nao
+    # o banco do extrato) e a pagina inteira - com as transacoes de
+    # verdade - ia pro detector errado (santander), sobrando so a ultima
+    # pagina (rodape) como sicredi.
     # 'SICREDI' em maiusculas (nao so 'Sicredi') porque um extrato real veio
     # com o rodape todo em caixa alta ("SICREDI, A VIDA E MELHOR QUANDO E
     # COOPERATIVA!"), e esse rodape SO aparece na ULTIMA pagina do PDF -
@@ -69,6 +77,7 @@ DETECTORES = [
     # com nenhum detector.
     ('sicredi',   lambda t: 'sicredi' in t.lower() or 'Associado:' in t
                               or '@@D@@' in t or '@@C@@' in t),
+    ('santander', lambda t: 'santander' in t.lower() or 'Extrato_PJ_A4' in t or 'BALP_UY' in t),
     # Civia nao escreve o proprio nome em lugar nenhum do texto (extrato
     # gerado pelo sistema "Schema", usado por varias cooperativas/bancos
     # pequenos - visto no metadado 'author: schemaprd' do PDF, mas isso
@@ -399,6 +408,20 @@ def _mostrar_aviso_atualizacao(resultado_update, thread_update):
 
 
 if __name__ == '__main__':
+    # O console do Windows costuma usar uma codificacao antiga (cp1252 ou
+    # similar) que nao sabe imprimir todo caractere Unicode - um nome de
+    # arquivo com acento (ex: "Bancário", com o acento como caractere
+    # combinante U+0301, comum quando o PDF/pasta veio de outro sistema)
+    # jogava uma UnicodeEncodeError no meio do print() e derrubava o
+    # programa inteiro (bug real reportado pelo Jean). Reconfigura pra
+    # UTF-8 com fallback de substituicao - nunca mais quebra por causa de
+    # um caractere que o console nao consegue desenhar.
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
     rodando_como_exe = getattr(sys, 'frozen', False)
     pasta_programa = _pasta_do_programa()
 
