@@ -7,6 +7,7 @@ Data (dd/mm/aaaa), Historico, Valor (positivo, virgula decimal), Tipo (C/D).
 """
 import sys
 import os
+import re
 import glob
 import threading
 import urllib.request
@@ -23,7 +24,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '1.8'
+VERSAO_ATUAL = '1.9'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -55,7 +56,19 @@ DETECTORES = [
     ('bb',        lambda t: 'BB Rende F' in t or ('Ag. origem' in t and 'Lote' in t) or 'Dt. balancete' in t
                               or 'Dia Lote Documento' in t),
     ('santander', lambda t: 'santander' in t.lower() or 'Extrato_PJ_A4' in t or 'BALP_UY' in t),
-    ('sicredi',   lambda t: 'Sicredi' in t or 'Associado:' in t),
+    # 'SICREDI' em maiusculas (nao so 'Sicredi') porque um extrato real veio
+    # com o rodape todo em caixa alta ("SICREDI, A VIDA E MELHOR QUANDO E
+    # COOPERATIVA!"), e esse rodape SO aparece na ULTIMA pagina do PDF -
+    # as paginas com as transacoes de verdade (as primeiras) nao tem
+    # nenhum sinal do nome do banco nelas. Por isso tambem conta como
+    # sicredi quando a pagina foi reconstruida pelo layout de colunas
+    # Debito/Credito/Saldo (`_texto_sicredi_colunas_por_pagina` ja so
+    # ativa pra esse layout especifico, entao os marcadores @@D@@/@@C@@
+    # sao um sinal seguro por si so, mesmo sem a palavra "sicredi" na
+    # pagina). Bug real reportado pelo Jean - extrato inteiro nao batia
+    # com nenhum detector.
+    ('sicredi',   lambda t: 'sicredi' in t.lower() or 'Associado:' in t
+                              or '@@D@@' in t or '@@C@@' in t),
     # Civia nao escreve o proprio nome em lugar nenhum do texto (extrato
     # gerado pelo sistema "Schema", usado por varias cooperativas/bancos
     # pequenos - visto no metadado 'author: schemaprd' do PDF, mas isso
@@ -105,6 +118,75 @@ def _texto_robusto_por_caracteres(page):
 # pra usar ela pra decidir quando trocar pelo fallback por caracteres.
 _FINGERPRINTS_TEXTO_EMBARALHADO = ('sistema.confesol/colmeia',)
 
+_MARCADOR_DEBITO = '@@D@@'
+_MARCADOR_CREDITO = '@@C@@'
+
+
+def _texto_sicredi_colunas_por_pagina(page):
+    """Reconstroi as linhas de um extrato Sicredi com colunas SEPARADAS de
+    Debito/Credito/Saldo (em vez de uma coluna so de Valor com sinal ou
+    letra C/D) usando a posicao (x) de cada palavra pra decidir em que
+    coluna um valor cai. O texto corrido sozinho e ambiguo aqui: um
+    lancamento pode ter so UM numero no fim da linha, e sem saber a
+    posicao nao da pra saber se aquele numero e Debito, Credito ou
+    Saldo (todos com o mesmo formato "1.234,56"). Marca o valor
+    encontrado com um sufixo (@@D@@valor ou @@C@@valor) que
+    `_parse_sicredi_colunas` em bancos.py le sem ambiguidade nenhuma. So
+    ativa quando a pagina tem esse layout especifico (cabecalho com
+    "DEBITO", "CREDITO" e "SALDO" como palavras separadas - o outro
+    layout do Sicredi ja suportado, com Valor+sinal numa coluna so, nao
+    tem esses 3 cabecalhos)."""
+    palavras = page.extract_words()
+    # "DEBITO"/"CREDITO"/"SALDO" podem aparecer de novo dentro do HISTORICO
+    # de alguma transacao (ex: historico "DEBITO T.E.D.") - por isso nao da
+    # pra so pegar a primeira ocorrencia de cada palavra isolada. O
+    # cabecalho de verdade e a UNICA linha onde as tres aparecem juntas.
+    por_linha = {}
+    for p in palavras:
+        if p['text'] in ('DEBITO', 'CREDITO', 'SALDO'):
+            por_linha.setdefault(round(p['top'], 1), {})[p['text']] = p
+    linha_cabecalho = next((v for v in por_linha.values() if len(v) == 3), None)
+    if linha_cabecalho is None:
+        return None
+
+    x_debito = linha_cabecalho['DEBITO']['x0']
+    x_credito = linha_cabecalho['CREDITO']['x0']
+    x_saldo = linha_cabecalho['SALDO']['x0']
+    limite_debito_credito = (x_debito + x_credito) / 2
+    limite_credito_saldo = (x_credito + x_saldo) / 2
+    padrao_valor = re.compile(r'^-?[\d.]+,\d{2}$')
+
+    linhas_por_top = {}
+    for p in palavras:
+        linhas_por_top.setdefault(round(p['top'], 1), []).append(p)
+
+    linhas_texto = []
+    for top in sorted(linhas_por_top.keys()):
+        ps = sorted(linhas_por_top[top], key=lambda p: p['x0'])
+        partes_historico = []
+        valor_debito = None
+        valor_credito = None
+        for p in ps:
+            # so trata como valor de coluna se estiver bem depois de onde
+            # a coluna Debito comeca - assim um numero de documento que por
+            # coincidencia tenha formato "123,45" (raro) dentro do texto
+            # normal nao e confundido com um lancamento
+            if padrao_valor.match(p['text']) and p['x0'] >= x_debito - 20:
+                if p['x0'] < limite_debito_credito:
+                    valor_debito = p['text']
+                elif p['x0'] < limite_credito_saldo:
+                    valor_credito = p['text']
+                # senao e Saldo - nao usado pro lancamento, so ignora
+            else:
+                partes_historico.append(p['text'])
+        linha = ' '.join(partes_historico)
+        if valor_debito:
+            linha += f' {_MARCADOR_DEBITO}{valor_debito}'
+        if valor_credito:
+            linha += f' {_MARCADOR_CREDITO}{valor_credito}'
+        linhas_texto.append(linha)
+    return '\n'.join(linhas_texto)
+
 
 def _paginas_texto(caminho_pdf):
     """Extrai o texto de cada pagina do PDF. Tenta pdfplumber primeiro (e
@@ -125,6 +207,10 @@ def _paginas_texto(caminho_pdf):
                 texto = page.extract_text() or ''
                 if any(fp in texto.lower() for fp in _FINGERPRINTS_TEXTO_EMBARALHADO):
                     texto = _texto_robusto_por_caracteres(page)
+                elif 'DEBITO' in texto and 'CREDITO' in texto and 'SALDO' in texto:
+                    texto_colunas = _texto_sicredi_colunas_por_pagina(page)
+                    if texto_colunas is not None:
+                        texto = texto_colunas
                 paginas.append(texto)
             return paginas
     except Exception:

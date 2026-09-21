@@ -793,10 +793,10 @@ def parse_santander(texto):
 # ---------------------------------------------------------------------------
 # SICREDI
 # ---------------------------------------------------------------------------
-def parse_sicredi(texto):
-    m_periodo = re.search(r'Per[íi]odo\s*(?:de|\()\s*(\d{2}/\d{2}/\d{4})', texto, re.IGNORECASE)
+def _parse_sicredi_valor_unico(texto):
+    """Primeiro layout do Sicredi suportado - uma unica coluna de Valor
+    com sinal (positivo=credito, '-'=debito), seguida da coluna Saldo."""
     padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(\S+)\s+(-?[\d\.]+,\d{2})\s+[\d\.]+,\d{2}$')
-    excluir = ('SALDO ANTERIOR',)
     out = []
     for l in _linhas_uteis(texto):
         l = l.strip()
@@ -815,6 +815,68 @@ def parse_sicredi(texto):
         tipo = 'D' if valor_str.strip().startswith('-') else 'C'
         out.append({'data': dt, 'historico': desc.strip(), 'valor': valor, 'tipo': tipo, 'obs': ''})
     return out, None
+
+
+def _parse_sicredi_colunas(texto):
+    """Segundo layout do Sicredi (v1.9) - colunas SEPARADAS de Debito/
+    Credito/Saldo (em vez de uma coluna so de Valor com sinal). O texto
+    corrido sozinho e ambiguo pra saber se o numero no fim de uma linha e
+    Debito, Credito ou Saldo - por isso esse texto ja vem pre-processado
+    por `_texto_sicredi_colunas_por_pagina` (converter.py), que usa a
+    POSICAO (x) de cada palavra no PDF pra decidir a coluna certa e marca
+    o valor com um sufixo sem ambiguidade: '@@D@@1.234,56' (debito) ou
+    '@@C@@1.234,56' (credito).
+    Lancamentos "CAPTACAO APLIC.FINANC.AVISO PREVIO" / "CAPTACAO
+    RESG.APLIC.FIN.AVISO PREV" sao a varredura automatica pra uma
+    aplicacao financeira (mesmo padrao do "Aplic Aut Mais" do Itau) -
+    excluidos, nao contam como movimento real da conta corrente (o
+    proprio extrato mostra o "SALDO ATUAL" da conta sempre voltando a
+    zero por causa dessa varredura; o dinheiro real fica documentado no
+    "SALDO APL. AUTOM." separado).
+    Validado com extrato real (4 paginas, incluindo as linhas de
+    CAPTACAO): reconstruindo o saldo linha a linha (a partir de "SALDO
+    ANTERIOR" = 0,00, aplicando +credito/-debito de CADA lancamento, TAMBEM
+    os de CAPTACAO) e comparando com o "Saldo" que o proprio extrato
+    declara em cada linha (nao usado no parser, so pra essa validacao),
+    0 divergencias em todo o extrato - confirma que a classificacao por
+    posicao (Debito x Credito x Saldo) esta certa em cada lancamento, nao
+    so no total agregado. (O "SALDO APL. AUTOM." final nao serve sozinho
+    pra validar o total das transacoes reais porque a aplicacao
+    automatica nao comecava o periodo do zero - o extrato nao declara o
+    saldo inicial dela.)
+    """
+    padrao_marcador = re.compile(r'@@([DC])@@(-?[\d\.]+,\d{2})')
+    padrao_data = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.*)$')
+    excluir_prefixo = ('CAPTACAO',)
+    out = []
+    for l in _linhas_uteis(texto):
+        l = l.strip()
+        m_valor = padrao_marcador.search(l)
+        if not m_valor:
+            continue
+        tipo, valor_str = m_valor.groups()
+        l_sem_marcador = padrao_marcador.sub('', l).strip()
+        m_data = padrao_data.match(l_sem_marcador)
+        if not m_data:
+            continue
+        data_str, historico = m_data.groups()
+        historico = historico.strip()
+        if historico.upper().startswith(excluir_prefixo):
+            continue
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        out.append({'data': dt, 'historico': historico, 'valor': _dec(valor_str.lstrip('-')),
+                     'tipo': tipo, 'obs': ''})
+    return out, None
+
+
+def parse_sicredi(texto):
+    if '@@D@@' in texto or '@@C@@' in texto:
+        return _parse_sicredi_colunas(texto)
+    return _parse_sicredi_valor_unico(texto)
 
 
 # ---------------------------------------------------------------------------

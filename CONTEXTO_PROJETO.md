@@ -319,7 +319,50 @@ pagina.
   do layout dos lancamentos de debito dentro do MESMO extrato - ver
   `parse_bradesco` pra entender a logica de linha "tipo" + linha de
   valor + continuacao)
-- Sicredi
+- Sicredi - DOIS layouts, `parse_sicredi` detecta qual e:
+  1. `_parse_sicredi_valor_unico` (o de cima) - uma unica coluna de Valor
+     com sinal (positivo=credito, negativo=debito), seguida da coluna
+     Saldo, tudo na mesma linha - da pra extrair so com regex de texto.
+  2. `_parse_sicredi_colunas` (v1.9) - visto noutra cooperativa (CCPI DA
+     REGIAO ALTOS DA SERRA). Colunas SEPARADAS de Debito/Credito/Saldo -
+     o texto corrido sozinho e AMBIGUO aqui: um lancamento pode ter so
+     UM numero no final da linha, sem dar pra saber se e Debito, Credito
+     ou Saldo so pelo texto (todos no formato "1.234,56"). Resolvido com
+     uma reconstrucao por POSICAO em `converter.py`
+     (`_texto_sicredi_colunas_por_pagina`): usa a posicao x de cada
+     palavra (via `page.extract_words()`) pra decidir em que coluna um
+     valor cai, e marca o resultado num texto intermediario com um
+     sufixo sem ambiguidade (`@@D@@1.234,56` ou `@@C@@1.234,56`) que o
+     parser em bancos.py so precisa ler com um regex simples.
+     ARMADILHA no cabecalho: as palavras "DEBITO"/"CREDITO"/"SALDO" podem
+     aparecer de novo dentro do HISTORICO de alguma transacao (ex:
+     historico real "DEBITO T.E.D.") - pegar a primeira ocorrencia de
+     cada palavra isolada da errado; e preciso achar a UNICA linha onde
+     as tres aparecem JUNTAS (mesma posicao vertical) pra ter certeza que
+     e o cabecalho de verdade, nao uma coincidencia dentro de um
+     lancamento.
+     Lancamentos "CAPTACAO APLIC.FINANC.AVISO PREVIO" / "CAPTACAO
+     RESG.APLIC.FIN.AVISO PREV" sao a varredura automatica pra uma
+     aplicacao financeira (mesmo padrao do "Aplic Aut Mais" do Itau) -
+     excluidos, nao contam como movimento real da conta corrente.
+     Validado com extrato real (4 paginas, incluindo as linhas de
+     CAPTACAO): reconstruindo o saldo linha a linha a partir de "SALDO
+     ANTERIOR" e comparando com o "Saldo" que o proprio extrato declara
+     em cada linha, 0 divergencias em todo o extrato.
+  ARMADILHA de deteccao (bug real corrigido na v1.9): o detector em
+  `DETECTORES` (converter.py) so procurava a palavra 'Sicredi' com essa
+  capitalizacao exata (ou 'Associado:') - um extrato real veio com o
+  rodape todo em CAIXA ALTA ("SICREDI, A VIDA E MELHOR QUANDO E
+  COOPERATIVA!") e nao batia. Pior: esse rodape SO aparece na ULTIMA
+  pagina do PDF - as paginas com as transacoes de verdade (as primeiras)
+  nao tinham NENHUM sinal do nome do banco nelas, entao mesmo corrigindo
+  a capitalizacao, `extrair_blocos_por_banco` ia quebrar o PDF em dois
+  blocos errados (paginas 1-3 como "banco nao identificado", so a pagina
+  4 como sicredi). Corrigido usando os proprios marcadores @@D@@/@@C@@
+  como sinal adicional do detector - eles so existem quando
+  `_texto_sicredi_colunas_por_pagina` ja confirmou que e esse layout
+  especifico, entao servem como fingerprint seguro mesmo sem a palavra
+  "sicredi" aparecer na pagina.
 
 ### Funciona mas precisa de revisao humana ocasional
 - Santander: o texto extraido do PDF NAO tem coluna ou sinal confiavel de
