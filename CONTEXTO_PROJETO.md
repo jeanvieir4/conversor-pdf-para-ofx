@@ -517,14 +517,41 @@ que a ferramenta se apresenta (LEIA-ME e mensagens do console deixam
 isso explicito).
 
 ### Escopo de bancos suportados
-So o extrato do APP da Caixa por enquanto (unico com amostra real
-testada). Regra de ouro reforcada aqui: NUNCA escrever parser de OCR
-pra um banco sem amostra real em maos - seria adivinhar o layout do app
-daquele banco, e o proprio caso da Caixa mostrou que OCR erra mesmo com
-amostra real testada; sem teste, o risco e maior ainda. Quando aparecer
-extrato digitalizado de outro banco, tratar como novo layout: escrever
-um novo `parse_<banco>_app_ocr` em `bancos_ocr.py`, adicionar o
-fingerprint em `DETECTORES_OCR`, validar batendo saldo, documentar aqui.
+- Extrato do APP da Caixa.
+- Extrato do Banco do Brasil (ocr-v1.2) - visto como um print/PDF salvo
+  do internet banking (autoatendimento.bb.com.br), nao um PDF gerado
+  nativamente pelo banco. O layout de colunas e o MESMO do formato
+  "atual" nativo do BB ja suportado em `bancos.py` (Ag. origem/Lote/
+  Documento/Historico/Valor/Saldo) - so que aqui vem como imagem, entao
+  precisou de parser proprio em `bancos_ocr.py` (`parse_bb_ocr`), nunca
+  reusando o parser nativo. PECULIARIDADE: o Tesseract as vezes le o
+  simbolo circular "C" (credito) como "€" (visualmente parecidos em
+  certas fontes) - tratado como equivalente. "BB Rende Facil"/"Rende
+  Facil" (varredura automatica pra aplicacao, mesmo padrao do "Aplic
+  Aut Mais" do Itau e do "CAPTACAO" do Sicredi) e excluido, nao conta
+  como movimento de conta corrente.
+  Validado com extrato real (4 paginas): 45 lancamentos reconhecidos, 3
+  linhas perdidas por erro de digito no proprio OCR (nao da pra
+  recuperar um digito que o Tesseract simplesmente nao leu certo -
+  aviso final conta quantas linhas foram perdidas). Reconstruindo o
+  saldo linha a linha (incluindo as linhas de Rende Facil, que tem
+  valor E saldo na mesma linha) contra o que o extrato declara: 15 de
+  19 batem exato, as 4 divergencias restantes sao explicadas
+  EXATAMENTE pelas 3 linhas perdidas (a diferenca do saldo bate com o
+  valor da linha que faltou) - confirma que a extracao dos valores
+  reconhecidos esta correta, o erro e so nas poucas linhas que o OCR
+  genuinamente nao conseguiu ler.
+
+Regra de ouro reforcada aqui: NUNCA escrever parser de OCR pra um banco
+sem amostra real em maos - seria adivinhar o layout do app/site daquele
+banco, e o proprio caso da Caixa (e agora do BB) mostrou que OCR erra
+mesmo com amostra real testada; sem teste, o risco e maior ainda.
+Quando aparecer extrato digitalizado de outro banco, tratar como novo
+layout: escrever um novo `parse_<banco>_ocr` em `bancos_ocr.py`,
+adicionar o fingerprint em `DETECTORES_OCR`, validar batendo saldo
+(reconstruindo linha a linha quando o extrato tiver saldo parcial
+declarado - muito mais rigoroso que so bater o total agregado, ver o
+caso do BB acima), documentar aqui.
 
 ### Distribuicao
 Mesmo fluxo do `Conversor_Extratos` (link estavel + releases arquivadas

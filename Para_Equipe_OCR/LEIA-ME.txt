@@ -65,9 +65,12 @@ do icone do Conversor_OCR.exe.
 
 BANCOS SUPORTADOS
 ------------------
-Por enquanto, so o extrato exportado pelo APLICATIVO da Caixa Economica
-Federal (diferente do PDF "gerenciador" da Caixa, que ja e suportado
-pelo Conversor_Extratos normal, sem precisar de OCR).
+Por enquanto:
+- Extrato exportado pelo APLICATIVO da Caixa Economica Federal
+  (diferente do PDF "gerenciador" da Caixa, que ja e suportado pelo
+  Conversor_Extratos normal, sem precisar de OCR).
+- Extrato do Banco do Brasil salvo como PDF a partir do internet
+  banking (autoatendimento.bb.com.br) - print de tela, sem texto.
 
 Se um extrato digitalizado for de outro banco (ou de um layout da Caixa
 diferente do testado), ele nao gera lancamentos e aparece um aviso na
