@@ -189,7 +189,69 @@ def parse_caixa(texto):
 # ---------------------------------------------------------------------------
 # ITAU
 # ---------------------------------------------------------------------------
+def _parse_itau_entradas_saidas(texto):
+    """Segundo layout do Itau (v2.1) - relatorio "Entradas e Saidas" do
+    Itau Empresas (cabecalho 'Lancamentos do periodo' / 'Razao Social
+    CNPJ/CPF Valor (R$) Saldo (R$)'). Diferente do layout mensal:
+    - ordem CRONOLOGICA REVERSA (30/06 no topo, 01/06 no fim);
+    - valor com sinal ('-391,06' = debito, sem sinal = credito);
+    - "SALDO TOTAL DISPONIVEL DIA" (um por dia com movimento) e "SALDO
+      ANTERIOR" (no FIM do extrato) nao sao lancamento - so servem pra
+      validar;
+    - cada lancamento ocupa 1 a 3 linhas: a celula e centralizada
+      verticalmente, entao a linha com a DATA e o VALOR pode ter o
+      historico completo ('DD/MM/AAAA PIX RECEBIDO FULANO 500,00') ou so
+      data+valor, com o texto antes (prefixo) e/ou depois (sufixo):
+        'PIX ENVIADO PIX ENVIADO CINTHIA' / '10/06/2026 -270,68' / 'HELE'
+    Quando a linha da data tem descricao, so ela e usada (prefixo/sufixo
+    soltos sao ambiguos - podem ser sufixo do lancamento anterior). Quando
+    so tem data+valor, junta o prefixo (linha anterior) e o sufixo (linha
+    seguinte, so se ela nao for o prefixo do PROXIMO lancamento - isso e o
+    caso quando a linha logo depois e uma linha data+valor sem descricao).
+    "RENDIMENTOS REND PAGO APLIC AUT MAIS" e credito real (aparece no saldo
+    do dia) - contado normalmente. Validado com extrato real: 126
+    lancamentos, saldo anterior (6.968,98) + movimento reconstruido dia a
+    dia bateu com TODOS os 17 "SALDO TOTAL DISPONIVEL DIA" declarados (0
+    divergencias).
+    """
+    linhas = [l.strip() for l in texto.split('\n') if l.strip()]
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})(?:\s+(.*?))?\s+(-?[\d.]+,\d{2})$')
+    inicio_data = re.compile(r'^\d{2}/\d{2}/\d{4}')
+    rodape = ('aviso:', 'novos lan', 'atualizado em', 'em caso de d', '0728, 24')
+    out = []
+    for i, l in enumerate(linhas):
+        m = padrao.match(l)
+        if not m:
+            continue
+        data_str, desc, valor_str = m.groups()
+        desc = (desc or '').strip()
+        if desc.upper().startswith(('SALDO TOTAL DISPON', 'SALDO ANTERIOR')):
+            continue
+        if not desc:
+            partes = []
+            if i > 0 and not inicio_data.match(linhas[i - 1]) and not linhas[i - 1].lower().startswith(rodape):
+                partes.append(linhas[i - 1])
+            if i + 1 < len(linhas) and not inicio_data.match(linhas[i + 1]) and not linhas[i + 1].lower().startswith(rodape):
+                prox_e_prefixo = (i + 2 < len(linhas) and padrao.match(linhas[i + 2])
+                                  and not (padrao.match(linhas[i + 2]).group(2) or '').strip())
+                if not prox_e_prefixo:
+                    partes.append(linhas[i + 1])
+            desc = ' '.join(partes) if partes else '(sem descricao)'
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        valor = _dec(valor_str.lstrip('-'))
+        tipo = 'D' if valor_str.startswith('-') else 'C'
+        out.append({'data': dt, 'historico': desc, 'valor': valor, 'tipo': tipo, 'obs': ''})
+    return out, None
+
+
 def parse_itau(texto):
+    if ('SALDO TOTAL DISPON' in texto and 'Razão Social' in texto
+            and 'Lançamentos do período' in texto):
+        return _parse_itau_entradas_saidas(texto)
     m_periodo = re.search(r'\b(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\s+(20\d{2})\b', texto, re.IGNORECASE)
     if not m_periodo:
         return [], 'Itau: nao encontrei o mes/ano do extrato (ex: "abr 2026") no cabecalho'

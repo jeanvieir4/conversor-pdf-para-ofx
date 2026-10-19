@@ -24,7 +24,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '2.0'
+VERSAO_ATUAL = '2.1'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -84,6 +84,12 @@ DETECTORES = [
     # nao aparece no texto das paginas). Fingerprint por combinacao de
     # campos do cabecalho, que sao bem especificos desse layout.
     ('civia',     lambda t: 'Conta/dv:' in t and 'Finalidade da Conta' in t),
+    # Itau - relatorio "Entradas e Saidas" (Itau Empresas, v2.1): a palavra
+    # "Itau" so aparece no rodape da ULTIMA pagina, e o cabecalho so na
+    # primeira - detecta pela combinacao de campos do cabecalho (pagina 1);
+    # as demais paginas herdam o banco da anterior (ver extrair_blocos_por_banco).
+    ('itau',      lambda t: 'Lançamentos do período' in t and 'Razão Social' in t
+                              and 'SALDO TOTAL DISPON' in t),
 ]
 
 

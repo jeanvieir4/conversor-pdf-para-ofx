@@ -377,6 +377,22 @@ pagina.
   com fallback frouxo tipo `'nome' in texto.lower()`, e o banco ERRADO
   checado primeiro na lista.
 
+- **Itau Empresas - "Entradas e Saidas" (v2.1)**: segundo layout do Itau
+  (cabecalho "Lancamentos do periodo: dd/mm/aaaa ate dd/mm/aaaa",
+  colunas "Data / Lancamentos / Razao Social / CNPJ/CPF / Valor / Saldo").
+  Ordem cronologica REVERSA, valor com sinal (negativo = debito), saldo
+  so por dia ("SALDO TOTAL DISPONIVEL DIA") e "SALDO ANTERIOR" no fim.
+  A razao social/descricao pode quebrar em linhas acima e abaixo da linha
+  da data (prefixo/sufixo). Parser novo `_parse_itau_entradas_saidas` em
+  `bancos.py`, chamado por um desvio aditivo (early-return) no topo de
+  `parse_itau` - o layout antigo ficou intacto. Detector `itau` novo no
+  FIM de `DETECTORES` (a palavra "Itau" so aparece no rodape da ultima
+  pagina; as demais herdam o banco). Linhas de saldo sao ignoradas;
+  "RENDIMENTOS REND PAGO APLIC AUT MAIS" e credito real e entra.
+  Validado com amostra real de 4 paginas: 126 lancamentos, saldo anterior
+  6.968,98 + creditos - debitos = 6.781,30 (bate com o saldo final) e
+  reconstrucao dia a dia bateu com os 17 saldos diarios declarados.
+
 ### Funciona mas precisa de revisao humana ocasional
 - Santander: o texto extraido do PDF NAO tem coluna ou sinal confiavel de
   credito x debito (o layout usa duas colunas visuais que se perdem na
