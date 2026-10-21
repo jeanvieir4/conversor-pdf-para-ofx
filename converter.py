@@ -24,7 +24,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '2.1'
+VERSAO_ATUAL = '2.2'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -90,6 +90,8 @@ DETECTORES = [
     # as demais paginas herdam o banco da anterior (ver extrair_blocos_por_banco).
     ('itau',      lambda t: 'Lançamentos do período' in t and 'Razão Social' in t
                               and 'SALDO TOTAL DISPON' in t),
+    # Civia - 'EXTRATO ESPECIAL' (v2.2): outro cabecalho do Civia, ver parse_civia.
+    ('civia',     lambda t: 'CIVIA - EXTRATO ESPECIAL' in t and 'CONTA/DV:' in t),
 ]
 
 

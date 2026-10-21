@@ -1018,7 +1018,29 @@ def parse_bradesco(texto):
 # de relatorio diferente do Ailos/ViaCredi ja suportado, gerado pelo sistema
 # "Schema" - por isso parser proprio, nao reusa parse_ailos)
 # ---------------------------------------------------------------------------
+def _parse_civia_extrato_especial(texto):
+    """Segundo layout do Civia ("CIVIA - EXTRATO ESPECIAL"): data com ano de
+    2 digitos, 'Historico Documento Valor C|D [Saldo]' - o saldo so aparece
+    na ultima linha do dia. Saldo anterior fica no cabecalho."""
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{2})\s+(.+?)\s+([\d\.]+,\d{2})\s+([CD])(?:\s+-?[\d\.]+,\d{2}[CD-]?)?$')
+    out = []
+    for l in _linhas_uteis(texto):
+        m = padrao.match(l.strip())
+        if not m:
+            continue
+        data_str, desc, valor_str, tipo = m.groups()
+        dd, mm, yy = data_str.split('/')
+        try:
+            dt = date(2000 + int(yy), int(mm), int(dd))
+        except ValueError:
+            continue
+        out.append({'data': dt, 'historico': desc.strip(), 'valor': _dec(valor_str), 'tipo': tipo, 'obs': ''})
+    return out, None
+
+
 def parse_civia(texto):
+    if 'EXTRATO ESPECIAL' in texto and 'CONTA/DV:' in texto:
+        return _parse_civia_extrato_especial(texto)
     """Extrato do Civia: cada lancamento numa unica linha
     'DD/MM/AAAA Historico Documento D/C Valor [Saldo]' - Saldo so aparece
     de vez em quando (nao em toda linha, parece um "snapshot" periodico,

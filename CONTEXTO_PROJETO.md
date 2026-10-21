@@ -393,6 +393,17 @@ pagina.
   6.968,98 + creditos - debitos = 6.781,30 (bate com o saldo final) e
   reconstrucao dia a dia bateu com os 17 saldos diarios declarados.
 
+- **Civia - "EXTRATO ESPECIAL" (v2.2)**: segundo layout do Civia
+  (cabecalho "CIVIA - EXTRATO ESPECIAL REF.dd/mm/aaaa", "CONTA/DV:",
+  "SALDO ANTERIOR:" no cabecalho). Data com ano de 2 digitos
+  (dd/mm/aa), linha "Historico Documento Valor C|D [Saldo]", saldo so na
+  ultima linha do dia. O detector antigo exigia "Finalidade da Conta" e
+  nao pegava; entrou detector novo no FIM de `DETECTORES` e um
+  early-return em `parse_civia` (-> `_parse_civia_extrato_especial`),
+  layout antigo intacto. Validado com amostra real: 87 lancamentos, saldo
+  anterior 2.088,18 + C - D = 241,72 (saldo final) e 21 saldos diarios
+  conferidos, 0 divergencias.
+
 ### Funciona mas precisa de revisao humana ocasional
 - Santander: o texto extraido do PDF NAO tem coluna ou sinal confiavel de
   credito x debito (o layout usa duas colunas visuais que se perdem na
