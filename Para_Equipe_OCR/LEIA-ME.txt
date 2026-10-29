@@ -71,6 +71,10 @@ Por enquanto:
   Conversor_Extratos normal, sem precisar de OCR).
 - Extrato do Banco do Brasil salvo como PDF a partir do internet
   banking (autoatendimento.bb.com.br) - print de tela, sem texto.
+- Extrato de conta corrente do Banco do Brasil escaneado (papel, com as
+  colunas Data / Dep. origem / Historico / Documento / Valor / Saldo). Cada
+  lancamento e conferido contra o saldo corrente que o proprio extrato
+  mostra; o que nao confere fica marcado "[A VERIFICAR - OCR]".
 
 Se um extrato digitalizado for de outro banco (ou de um layout da Caixa
 diferente do testado), ele nao gera lancamentos e aparece um aviso na

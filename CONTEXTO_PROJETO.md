@@ -588,6 +588,21 @@ proprio numero de versao. Pasta `Para_Equipe_OCR/` (analoga a
 `Para_Equipe/`) com `Conversor_OCR.exe` + `LEIA-ME.txt` proprio
 (bem mais extenso em avisos que o do conversor principal) + `LICENSE.txt`.
 
+### OCR - Banco do Brasil, layout escaneado "Dep. origem" (ocr-v1.3)
+
+Segundo layout do BB no OCR: extrato de conta corrente escaneado em papel
+("Mod. 0.50.817-2", SISBB), colunas Data / Dep. origem / Historico /
+Documento / Valor / Saldo e uma linha de detalhe abaixo de cada
+lancamento. Detector novo `identificar_bb_ocr_dep_origem` (so vale se o
+layout 1 NAO bateu) e desvio aditivo no topo de `parse_bb_ocr` ->
+`_parse_bb_ocr_dep_origem`; layout 1 intacto. Cada linha e conferida pelo
+saldo corrente declarado (saldo novo - anterior = valor): sinal C/D e
+corrigido pelo saldo, e o que nao confere vira `incerta` (vermelho, fora do
+OFX). Data separada do resto da linha pelo OCR (papel torto) fica
+"pendente" pra proxima linha com valor. Validado com amostra real (maio/2026,
+1 pagina): 17 lancamentos, todos conferidos pelo saldo, saldo final
+2.458,69 bate.
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios

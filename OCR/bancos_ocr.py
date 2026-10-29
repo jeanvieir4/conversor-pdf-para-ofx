@@ -237,6 +237,8 @@ def parse_bb_ocr(linhas):
     valores reconhecidos esta correta, o erro e so nas poucas linhas que
     o OCR realmente nao conseguiu ler direito.
     """
+    if not identificar_bb_ocr(linhas) and identificar_bb_ocr_dep_origem(linhas):
+        return _parse_bb_ocr_dep_origem(linhas)
     linhas_com_data = 0
     linhas_nao_reconhecidas = 0
     transacoes = []
@@ -274,9 +276,114 @@ def parse_bb_ocr(linhas):
     return transacoes, aviso
 
 
+def identificar_bb_ocr_dep_origem(linhas):
+    """Segundo layout do BB lido por OCR: extrato de conta corrente
+    escaneado (papel, "Mod. 0.50.817-2", SISBB) com colunas Data / Dep.
+    origem / Historico / Documento / Valor / Saldo e uma linha de detalhe
+    abaixo de cada lancamento. So vale se o layout 1 (autoatendimento)
+    NAO bateu - o layout 1 segue tratado exatamente como antes."""
+    texto = ' '.join(linhas).upper()
+    return ('SISBB' in texto and 'EXTRATO DE CONTA CORRENTE' in texto
+            and 'DEP.' in texto and 'SALDO ANTERIOR' in texto)
+
+
+_RE_BB2_VALOR_SALDO = re.compile(r'([\d.]+,\d{2})\s*([CD€])\s+([\d.]+,\d{2})\s*([CD€])\s*$')
+_RE_BB2_SALDO_ANT = re.compile(r'SALDO ANTERIOR\s+([\d.]+,\d{2})\s*([CD€])', re.IGNORECASE)
+_RE_BB2_DATA = re.compile(r'^(\d{2}/\d{2}/\d{4})\b')
+
+
+def _parse_bb_ocr_dep_origem(linhas):
+    """Cada lancamento tem 'DATA [AG] HISTORICO [DOC] VALOR C|D SALDO C|D' e,
+    na linha de baixo, um detalhe ('03/05 19:46 ... NOME'). O OCR as vezes
+    separa a data do resto da linha (papel levemente torto), entao uma data
+    sozinha fica "pendente" pra proxima linha com valor. O saldo corrente
+    declarado em cada linha serve de conferencia: se saldo novo - saldo
+    anterior nao for exatamente o valor lido, o lancamento vira incerto
+    (vermelho no Excel, fora do OFX); se so o sinal C/D foi lido errado
+    mas o valor bate, o sinal e corrigido pelo saldo."""
+    def sinal(v, t):
+        return v if t in ('C', '€') else -v
+
+    saldo_prev = None
+    for l in linhas:
+        m = _RE_BB2_SALDO_ANT.search(l)
+        if m:
+            saldo_prev = sinal(_dec(m.group(1)), m.group(2))
+            break
+
+    transacoes = []
+    pendente = None
+    ult = None
+    n_incertas = 0
+    for linha in linhas:
+        l = linha.strip()
+        if '***' in l or re.search(r'\bSALDO\s*$', l, re.IGNORECASE):
+            ult = None
+            continue
+        m = _RE_BB2_VALOR_SALDO.search(l)
+        if m and 'SALDO ANTERIOR' not in l.upper():
+            prefixo = l[:m.start()].strip()
+            md = _RE_BB2_DATA.match(prefixo)
+            if md:
+                data_str = md.group(1)
+                prefixo = prefixo[md.end():].strip()
+            else:
+                data_str = pendente
+            pendente = None
+            prefixo = re.sub(r'^\d{4}-?\d\b\s*', '', prefixo)
+            prefixo = re.sub(r'\s+[\d.]*\d\.\d{3}$', '', prefixo).strip()
+            prefixo = prefixo.replace('COMPRACICARTAO', 'COMPRA C/CARTAO')
+            if not data_str:
+                ult = None
+                continue
+            dd, mm, yyyy = data_str.split('/')
+            try:
+                dt = date(int(yyyy), int(mm), int(dd))
+            except ValueError:
+                ult = None
+                continue
+            valor = _dec(m.group(1))
+            saldo = sinal(_dec(m.group(3)), m.group(4))
+            tipo = 'C' if m.group(2) in ('C', '€') else 'D'
+            incerta = False
+            if saldo_prev is not None:
+                delta = saldo - saldo_prev
+                if abs(delta) == valor:
+                    tipo = 'C' if delta > 0 else 'D'
+                else:
+                    incerta = True
+            saldo_prev = saldo
+            if incerta:
+                n_incertas += 1
+            ult = {'data': dt, 'historico': prefixo, 'valor': valor, 'tipo': tipo,
+                   'obs': '[A VERIFICAR - OCR] valor/saldo nao conferem' if incerta else '',
+                   'incerta': incerta, '_detalhes': 0}
+            transacoes.append(ult)
+            continue
+        md = _RE_BB2_DATA.match(l)
+        if md:
+            pendente = md.group(1)
+            ult = None
+            continue
+        if ult is not None and ult['_detalhes'] < 2:
+            limpo = re.sub(r'^[^0-9A-Za-z]+', '', l)
+            if len(re.sub(r'[^0-9A-Za-z]', '', limpo)) >= 4 and not re.fullmatch(r'[\d.\s=\-]+', limpo):
+                ult['historico'] = (ult['historico'] + ' ' + limpo).strip()
+                ult['_detalhes'] += 1
+    for t in transacoes:
+        t.pop('_detalhes', None)
+
+    aviso = (f'Extrato lido por OCR (imagem escaneada, nao PDF nativo). {len(transacoes)} lancamento(s) '
+             f'encontrados; cada um foi conferido contra o saldo corrente que o proprio extrato declara. '
+             f'{n_incertas} nao conferiram e ficaram marcados "[A VERIFICAR - OCR]" (fora do OFX). '
+             f'CONFIRA TODOS OS VALORES contra o extrato original antes de usar.')
+    return transacoes, aviso
+
+
 DETECTORES_OCR = [
     ('caixa', identificar_caixa_app),
     ('bb', identificar_bb_ocr),
+    ('bb', identificar_bb_ocr_dep_origem),
 ]
 
 PARSERS_OCR = {
