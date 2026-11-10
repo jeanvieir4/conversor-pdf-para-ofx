@@ -2,8 +2,7 @@
 """
 Conversor PDF para OFX - Jean Vieira
 Uso: python converter.py caminho_do_extrato.pdf [outro.pdf ...]
-Gera um .xlsx por PDF de entrada, na mesma pasta, com 4 colunas:
-Data (dd/mm/aaaa), Historico, Valor (positivo, virgula decimal), Tipo (C/D).
+Gera um .ofx por banco encontrado no PDF (ou um .txt explicando o problema, se nao gerar):
 """
 import sys
 import os
@@ -11,6 +10,8 @@ import re
 import glob
 import threading
 import urllib.request
+import atualizador
+import relatorio
 import pdfplumber
 import fitz
 from openpyxl import Workbook
@@ -24,10 +25,14 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '2.2'
+VERSAO_ATUAL = '2.3'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
+_URL_HASH = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/SHA256_EXE'
+_NOME_EXE = 'Conversor_Extratos.exe'
+# Preenchido pela verificacao de versao (ver __main__); usado nos relatorios .txt.
+_INFO_UPDATE = {}
 
 # Observacao: nem todo banco escreve o proprio nome como texto selecionavel no PDF
 # (varios usam o nome so na logo, que e imagem). Por isso alguns detectores usam
@@ -352,9 +357,6 @@ def processar_pdf(caminho_pdf, pasta_saida):
         if obs:
             avisos.append((banco, obs))
 
-    caminho_saida = os.path.join(pasta_saida, f'{nome_base}.xlsx')
-    gerar_excel(transacoes_por_banco, avisos, caminho_saida)
-
     arquivos_ofx = []
     for banco, transacoes in transacoes_por_banco.items():
         titulo_banco = NOMES_BANCO.get(banco, banco)
@@ -362,7 +364,72 @@ def processar_pdf(caminho_pdf, pasta_saida):
         if gerar_ofx(transacoes, banco, caminho_ofx):
             arquivos_ofx.append(caminho_ofx)
 
-    return caminho_saida, total, avisos, arquivos_ofx
+    if arquivos_ofx:
+        saida = arquivos_ofx[0]
+        if avisos:
+            # O OFX saiu, mas parte do PDF ficou de fora ou tem ressalva: deixa registrado.
+            relatorio.escrever_relatorio(
+                caminho_pdf, pasta_saida, '_AVISOS',
+                'Avisos sobre a conversão (o arquivo .ofx FOI gerado)',
+                'O .ofx foi gerado, mas o programa encontrou o seguinte:\n\n' + _texto_avisos(avisos),
+                'Confira se está faltando algum lançamento comparando o .ofx com o extrato original '
+                'antes de importar no sistema.',
+                _INFO_UPDATE, VERSAO_ATUAL, _URL_DOWNLOAD)
+        return saida, total, avisos, arquivos_ofx
+
+    saida = relatorio.escrever_relatorio(
+        caminho_pdf, pasta_saida, '_ERRO',
+        'NÃO FOI POSSÍVEL GERAR O ARQUIVO .OFX',
+        _explicar_falha(avisos, total), _orientar_falha(avisos),
+        _INFO_UPDATE, VERSAO_ATUAL, _URL_DOWNLOAD)
+    return saida, total, avisos, arquivos_ofx
+
+
+def _texto_avisos(avisos):
+    return '\n'.join(f'- {NOMES_BANCO.get(o, o)}: {a}' for o, a in avisos)
+
+
+def _explicar_falha(avisos, total):
+    origens = [o for o, _ in avisos]
+    if '(sem texto no PDF)' in origens:
+        return ('Este PDF é uma IMAGEM (extrato escaneado, foto ou print): ele não tem texto que o '
+                'programa consiga ler, então nenhum lançamento foi encontrado.')
+    if '(banco nao identificado)' in origens and total == 0 and len(origens) == len(
+            [x for x in origens if x == '(banco nao identificado)']):
+        return ('O programa não reconheceu o banco/layout deste extrato. Pode ser um banco que ainda '
+                'não é suportado ou um modelo de extrato novo desse banco. Nenhum lançamento foi lido.')
+    if avisos:
+        return ('O programa reconheceu o extrato, mas não conseguiu tirar nenhum lançamento dele.\n\n'
+                + _texto_avisos(avisos))
+    if total > 0:
+        return ('Foram lidos lançamentos, mas nenhum tinha data e valor válidos para gravar no .ofx.')
+    return 'O programa leu o PDF, mas não encontrou nenhum lançamento nele (o extrato pode estar vazio).'
+
+
+def _orientar_falha(avisos):
+    origens = [o for o, _ in avisos]
+    if '(sem texto no PDF)' in origens:
+        return ('Use o programa Conversor_OCR (ferramenta separada, feita para extrato escaneado) neste PDF. '
+                'Atenção: o OCR pode errar, confira os valores contra o extrato original.')
+    return ('1) Confira se o PDF é mesmo um extrato bancário (e não um comprovante ou relatório) e se está '
+            'completo.\n2) Veja abaixo se existe versão nova do programa e atualize.\n'
+            '3) Se persistir, envie este PDF para o Jean (contato no fim deste arquivo) para incluir '
+            'suporte a este layout.')
+
+
+def relatorio_excecao(caminho_pdf, pasta_saida, erro):
+    """Chamado quando o processamento do PDF quebrou de vez (arquivo corrompido,
+    protegido por senha, em uso por outro programa, etc.)."""
+    return relatorio.escrever_relatorio(
+        caminho_pdf, pasta_saida, '_ERRO',
+        'NÃO FOI POSSÍVEL GERAR O ARQUIVO .OFX',
+        'O programa não conseguiu abrir ou ler este PDF.\n'
+        'Causas mais comuns: arquivo corrompido ou incompleto (download interrompido), PDF protegido por '
+        'senha, ou arquivo aberto/bloqueado por outro programa.\n\n'
+        f'Detalhe técnico (se o Jean pedir): {erro}',
+        'Abra o PDF para ver se ele abre normalmente. Se estiver protegido por senha, salve uma cópia sem '
+        'senha. Se estiver corrompido, baixe o extrato de novo no banco. Depois tente outra vez.',
+        _INFO_UPDATE, VERSAO_ATUAL, _URL_DOWNLOAD)
 
 
 def _versao_maior(remota, atual):
@@ -415,6 +482,14 @@ def _mostrar_aviso_atualizacao(resultado_update, thread_update):
         print('============================================')
 
 
+def _pausar():
+    """Espera Enter no fim (duplo clique); nao quebra se nao houver teclado/console."""
+    try:
+        input('\nPressione Enter para sair...')
+    except (EOFError, OSError):
+        pass
+
+
 if __name__ == '__main__':
     # O console do Windows costuma usar uma codificacao antiga (cp1252 ou
     # similar) que nao sabe imprimir todo caractere Unicode - um nome de
@@ -433,14 +508,22 @@ if __name__ == '__main__':
     rodando_como_exe = getattr(sys, 'frozen', False)
     pasta_programa = _pasta_do_programa()
 
-    resultado_update = {}
-    thread_update = threading.Thread(target=_verificar_atualizacao, args=(resultado_update,), daemon=True)
+    resultado_update = _INFO_UPDATE
+    thread_update = threading.Thread(target=atualizador.verificar_versao,
+                                     args=(_URL_VERSION, VERSAO_ATUAL, resultado_update), daemon=True)
     thread_update.start()
 
     print('============================================')
     print('  Conversor PDF para OFX - Jean Vieira')
     print(f'  Versao {VERSAO_ATUAL}')
     print('============================================')
+
+    # Atualizacao automatica (com confirmacao): ver atualizador.py.
+    atualizador.limpar_restos(_NOME_EXE)
+    thread_update.join(timeout=2.5)
+    if resultado_update.get('nova_versao'):
+        atualizador.oferecer_atualizacao(_NOME_EXE, _URL_DOWNLOAD, _URL_HASH, VERSAO_ATUAL,
+                                         resultado_update['nova_versao'], _URL_DOWNLOAD)
 
     if len(sys.argv) > 1:
         # PDFs arrastados e soltos em cima do .exe (ou passados na linha de comando)
@@ -456,7 +539,7 @@ if __name__ == '__main__':
         print('e execute o programa novamente, ou arraste os PDFs em cima do .exe.')
         _mostrar_aviso_atualizacao(resultado_update, thread_update)
         if rodando_como_exe:
-            input('\nPressione Enter para sair...')
+            _pausar()
         sys.exit(1)
 
     pasta_saida = os.environ.get('PASTA_SAIDA') or pasta_programa
@@ -464,17 +547,28 @@ if __name__ == '__main__':
     for caminho in arquivos:
         try:
             saida, n, avisos, arquivos_ofx = processar_pdf(caminho, pasta_saida)
-            print(f'{caminho} -> {saida} ({n} lancamentos, {len(avisos)} avisos, {len(arquivos_ofx)} ofx gerado(s))')
+            if arquivos_ofx:
+                print(f'OK: {caminho} -> {n} lancamentos, {len(arquivos_ofx)} arquivo(s) .ofx gerado(s)'
+                      + (' (veja tambem o arquivo _AVISOS.txt)' if avisos else ''))
+            else:
+                erros += 1
+                print(f'NAO GEROU OFX: {caminho}')
+                print(f'   Motivo e o que fazer: abra o arquivo {saida}')
         except Exception as e:
             erros += 1
-            print(f'ERRO ao processar "{caminho}": {e}')
+            try:
+                txt = relatorio_excecao(caminho, pasta_saida, e)
+                print(f'NAO GEROU OFX: {caminho}')
+                print(f'   Motivo e o que fazer: abra o arquivo {txt}')
+            except Exception:
+                print(f'ERRO ao processar "{caminho}": {e}')
 
     print()
     print('============================================')
     print(f'Concluido. {len(arquivos)} arquivo(s) processado(s), {erros} erro(s).')
-    print('Os arquivos .xlsx e .ofx foram gerados nesta mesma pasta.')
+    print('Os arquivos .ofx (e, se houve problema, o .txt explicando) estao nesta mesma pasta.')
     print('============================================')
     _mostrar_aviso_atualizacao(resultado_update, thread_update)
     if rodando_como_exe:
-        input('\nPressione Enter para sair...')
+        _pausar()
     sys.exit(1 if erros else 0)

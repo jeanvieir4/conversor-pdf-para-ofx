@@ -603,6 +603,32 @@ OFX). Data separada do resto da linha pelo OCR (papel torto) fica
 1 pagina): 17 lancamentos, todos conferidos pelo saldo, saldo final
 2.458,69 bate.
 
+## Atualizacao automatica + relatorio .txt (Conversor_Extratos v2.3 / OCR v1.4)
+
+Pedido da equipe/Jean: ninguem percebia o aviso de versao nova (impresso no
+fim) e o Jean sempre precisava mandar o exe novo.
+- `atualizador.py` (compartilhado pelos dois exes): ao abrir, le `VERSION`
+  (`VERSION_OCR` no OCR) no GitHub; se houver versao nova e o console for
+  interativo, pergunta "Atualizar agora? (S/N)". Se S: baixa o zip da release
+  estavel (`1.0` / `ocr-1.0`), confere o SHA-256 do exe contra o arquivo
+  `SHA256_EXE` / `SHA256_OCR` do repositorio e troca o exe NA MESMA PASTA
+  (renomeia o exe em uso pra `.old`, coloca o novo, reabre com os mesmos
+  argumentos; o `.old` e apagado na proxima abertura). Qualquer falha deixa o
+  exe atual intacto. Teste local: variavel `CONVERSOR_URL_BASE_TESTE` aceita
+  so `file:///...` (nunca redireciona pra internet).
+- ORDEM DO RELEASE agora (importante): build -> zip -> calcular SHA-256 do exe
+  -> gravar `SHA256_EXE`/`SHA256_OCR` -> subir os assets das releases ->
+  SO ENTAO commit+push de `VERSION`/`VERSION_OCR` + hashes (os clientes olham
+  o VERSION primeiro; se subir antes do asset, o hash nao bate e a
+  atualizacao e abortada com seguranca).
+- Versoes <= 2.2 / OCR <= 1.3 nao tem o mecanismo: cada pessoa instala a
+  v2.3/v1.4 manualmente uma vez.
+- Excel REMOVIDO (pedido do Jean: "nao serve pra nada"). Saida: `.ofx`; se
+  nao gerar, `<pdf>_ERRO.txt` (`relatorio.py`) com o que houve, o que fazer e
+  se existe versao nova; se gerou mas ha ressalva, `<pdf>_AVISOS.txt`. No OCR
+  as linhas incertas (fora do OFX) ficam listadas no `_AVISOS.txt`.
+  `gerar_excel` continua no converter.py mas ninguem mais chama.
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios

@@ -1,4 +1,4 @@
-CONVERSOR OCR (EXTRATO DIGITALIZADO -> EXCEL + OFX)
+CONVERSOR OCR (EXTRATO DIGITALIZADO -> OFX)
 ==================================================================
 Jean Vieira | (49) 99907-9884 | jean.vieira@hotmail.com
 
@@ -16,13 +16,11 @@ que parecem corretos - testado num extrato real, uma fatia das linhas
 (entre 5% e 11% dependendo do arquivo) sai com o sinal credito/debito
 que nao da pra confirmar com certeza.
 
-Por isso, TODA planilha gerada por essa ferramenta:
-- Vem com um aviso na aba "Pendencias" avisando que foi lida por OCR e
-  pedindo pra conferir tudo contra o extrato original;
-- As linhas onde o credito/debito ficou incerto vem destacadas em
-  VERMELHO e marcadas "[A VERIFICAR - OCR]" na coluna Observacao - essas
-  NAO entram no arquivo .ofx (nao da pra mandar um lancamento com sinal desconhecido
-  pro sistema contabil);
+Por isso, TODO arquivo gerado por essa ferramenta:
+- As linhas onde o credito/debito ficou incerto NAO entram no arquivo
+  .ofx (nao da pra mandar um lancamento com sinal desconhecido pro
+  sistema contabil) e ficam listadas no arquivo "_AVISOS.txt" que sai
+  junto, pra voce lancar a mao depois de conferir;
 - Voce PRECISA conferir cada extrato gerado por essa ferramenta contra
   o PDF original antes de usar em qualquer fechamento ou declaracao.
 
@@ -52,10 +50,12 @@ COMO USAR
 3. Aguarde a janela preta terminar de processar - OCR e mais lento que
    o conversor normal, pode levar bem mais tempo por PDF.
 4. Pra cada PDF sao gerados, na mesma pasta:
-   - um .xlsx com o mesmo nome do PDF;
    - um .ofx (so com os lancamentos onde o sinal foi confirmado - os
-     "[A VERIFICAR]" ficam de fora e precisam ser lancados manualmente
-     depois de conferir).
+     que ficaram de fora vem listados no "_AVISOS.txt" e precisam ser
+     lancados manualmente depois de conferir).
+   - SE NAO CONSEGUIR gerar o .ofx, sai um .txt com o nome do PDF +
+     "_ERRO" explicando o que houve, o que fazer e se existe versao
+     nova do programa.
 5. Aperte Enter (ou feche a janela) quando terminar.
 
 ALTERNATIVA: ARRASTAR E SOLTAR
@@ -77,10 +77,17 @@ Por enquanto:
   mostra; o que nao confere fica marcado "[A VERIFICAR - OCR]".
 
 Se um extrato digitalizado for de outro banco (ou de um layout da Caixa
-diferente do testado), ele nao gera lancamentos e aparece um aviso na
-aba "Pendencias" da planilha. Nesse caso, envie o PDF pro Jean pra
+diferente do testado), ele nao gera o .ofx e sai um arquivo
+"_ERRO.txt" explicando. Nesse caso, envie o PDF pro Jean pra
 adicionar suporte aquele layout - so da pra fazer isso com uma amostra
 real em maos (nunca adivinhando o formato).
+
+ATUALIZACAO AUTOMATICA
+------------------------
+Ao abrir, o programa verifica se existe versao nova e, se existir,
+pergunta "Atualizar agora? (S/N)": digite S e Enter. Ele baixa, troca o
+arquivo NA MESMA PASTA e reabre sozinho. Se nao conseguir, continua na
+versao atual e mostra o link pra baixar.
 
 PROBLEMAS COMUNS
 -----------------

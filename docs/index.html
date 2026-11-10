@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Conversor PDF para OFX</title>
-<meta name="description" content="Converte extrato bancario em PDF para Excel e OFX, gratis e offline.">
+<meta name="description" content="Converte extrato bancario em PDF para OFX, gratis e offline.">
 
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
@@ -447,7 +447,7 @@
     <div>
       <p class="eyebrow">Ferramenta gratuita · código aberto</p>
       <h1>Conversor PDF para OFX</h1>
-      <p class="tagline">Extrato bancário em PDF vira planilha e OFX prontos &mdash; sem colar em IA, sem digitar nada.</p>
+      <p class="tagline">Extrato bancário em PDF vira OFX pronto &mdash; sem colar em IA, sem digitar nada.</p>
     </div>
     <div class="contact-block">
       <strong>Jean Vieira</strong><br>
@@ -484,7 +484,7 @@
       você tiver só uma imagem escaneada, foto ou print exportado do
       aplicativo do banco sem texto selecionável, use a ferramenta
       separada <strong>Conversor OCR</strong> em vez desta — ela lê por
-      OCR (taxa de erro real, toda planilha sai marcada pra conferência)
+      OCR (taxa de erro real, todo resultado precisa de conferência)
       e hoje só suporta o extrato do app da Caixa Econômica Federal.
     </p>
     <p style="margin-top:0.8rem">
@@ -494,7 +494,7 @@
 
   <div class="ledger">
     <div class="ledger-label">
-      <span>extrato.xlsx&nbsp;+&nbsp;extrato_Sicoob.ofx</span>
+      <span>extrato_Sicoob.ofx</span>
       <span class="example-flag">exemplo do resultado</span>
     </div>
     <table class="ledger-table">
@@ -528,17 +528,13 @@
     <h2>O que é</h2>
     <p>
       Um programa que lê o extrato bancário em PDF e gera, pra cada PDF:
-      uma planilha Excel com 4 colunas fixas (<strong>Data</strong>,
-      <strong>Histórico</strong>, <strong>Valor</strong> sempre positivo com
-      vírgula decimal, <strong>Tipo</strong> C de crédito ou D de débito) e
       um <strong>.ofx</strong> pronto pra importar direto no sistema de
       conciliação bancária, sem passar pelo OFX Generator. Roda no
       computador, sem internet, sem IA e sem custo &mdash; e não envia o
       extrato pra lugar nenhum.
     </p>
     <p>
-      Se o extrato tiver páginas de bancos diferentes, cada banco vira uma
-      aba separada na planilha e um .ofx separado.
+      Se o extrato tiver páginas de bancos diferentes, cada banco vira um .ofx separado.
     </p>
     <p>
       No .ofx, o código do banco (Bank ID / COMPE) é preenchido sozinho.
@@ -573,7 +569,7 @@
     <ol class="steps">
       <li><span><strong>Extraia o zip</strong> baixado e <strong>coloque o(s) PDF(s)</strong> na mesma pasta do programa (<code>Conversor_Extratos.exe</code>).</span></li>
       <li><span><strong>Dê dois cliques</strong> no programa. Uma janela preta mostra o progresso.</span></li>
-      <li><span>Um <strong>.xlsx</strong> e um <strong>.ofx</strong> por banco são gerados na mesma pasta.</span></li>
+      <li><span>Um <strong>.ofx</strong> por banco é gerado na mesma pasta (se não conseguir, sai um <strong>.txt</strong> explicando o que houve e se há versão nova).</span></li>
       <li><span>Aperte <strong>Enter</strong> pra fechar a janela quando terminar.</span></li>
     </ol>
     <p style="margin-top:1rem">
@@ -604,8 +600,8 @@
       <strong>[A VERIFICAR]</strong> pra conferência manual.
     </p>
     <p>
-      PDF de um banco ainda não suportado não trava o programa: ele aparece
-      listado na aba <strong>Pendências</strong> da planilha, e o restante
+      PDF de um banco ainda não suportado não trava o programa: sai um
+      <strong>.txt</strong> explicando o motivo, e o restante
       dos extratos é processado normalmente.
     </p>
   </section>
@@ -615,7 +611,7 @@
     <p>
       Ferramenta oferecida como está, gratuita, sem garantia. Ela agiliza a
       digitação, não substitui a conferência profissional. Antes de usar
-      qualquer planilha gerada no fechamento contábil de um cliente,
+      qualquer arquivo gerado no fechamento contábil de um cliente,
       <strong>confira a soma dos créditos e a soma dos débitos contra os
       totais que o próprio extrato do banco declara</strong>. Quem usa a
       ferramenta é responsável por essa conferência.

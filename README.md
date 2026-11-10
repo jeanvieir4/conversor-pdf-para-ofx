@@ -2,7 +2,7 @@
 
 Converte extrato bancario em PDF (Sicoob, Itau, Bradesco, Caixa, Banco do
 Brasil, Sicredi, Cresol, UniCred, Ailos/ViaCredi, Santander e mais) para
-Excel e OFX prontos para conciliacao. 100% offline, sem IA, sem custo, sem
+OFX pronto para conciliacao. 100% offline, sem IA, sem custo, sem
 copiar e colar.
 
 Desenvolvido por [Jean Vieira](mailto:jean.vieira@hotmail.com), contador,
@@ -27,8 +27,6 @@ virus. Clique em "Mais informacoes" -> "Executar assim mesmo".
 
 Pra cada PDF, um arquivo por banco encontrado nele:
 
-- **`.xlsx`** com 4 colunas fixas: `Data` (dd/mm/aaaa), `Historico`,
-  `Valor` (sempre positivo, virgula decimal), `Tipo` (`C` ou `D`).
 - **`.ofx`** (formato OFX 1.02 SGML) pronto pra importar na conciliacao
   bancaria do seu sistema contabil, com o codigo do banco (COMPE)
   preenchido automaticamente.
@@ -39,7 +37,7 @@ Sicoob, Caixa Economica Federal, Itau, UniCred, Cresol, Ailos/ViaCredi,
 Banco do Brasil, Bradesco, Sicredi e Santander.
 
 PDF de um banco ainda nao suportado nao trava a execucao: ele aparece na
-aba "Pendencias" da planilha, e o resto dos extratos e processado normal.
+um arquivo `_ERRO.txt` explicando o que houve (e se ha versao nova), e o resto dos extratos e processado normal.
 Santander tem uma ressalva: o layout do PDF nao tem marcacao confiavel de
 credito/debito no texto extraido, entao alguns lancamentos vem marcados
 `[A VERIFICAR]` pra conferencia manual.
@@ -53,7 +51,7 @@ pip install pdfplumber openpyxl
 python converter.py extrato1.pdf extrato2.pdf
 ```
 
-Gera os `.xlsx`/`.ofx` na pasta atual (ou na pasta definida na variavel de
+Gera os `.ofx` (ou o `_ERRO.txt`) na pasta atual (ou na pasta definida na variavel de
 ambiente `PASTA_SAIDA`).
 
 Pra gerar o `.exe` standalone (PyInstaller):
@@ -66,10 +64,10 @@ python -m PyInstaller --onefile --name Conversor_Extratos --console converter.py
 ## Estrutura
 
 - `converter.py` - ponto de entrada: identifica o banco de cada pagina do
-  PDF, agrupa por banco, chama o parser correspondente e gera `.xlsx`/`.ofx`.
+  PDF, agrupa por banco, chama o parser correspondente e gera o `.ofx`.
 - `bancos.py` - um `parse_<banco>(texto)` por banco.
-- `ofx_export.py` - gera o `.ofx` a partir das mesmas transacoes usadas no
-  Excel (formato validado contra um `.ofx` real de referencia).
+- `ofx_export.py` - gera o `.ofx` a partir das transacoes lidas, no
+  mesmo (formato validado contra um `.ofx` real de referencia).
 - `CONTEXTO_PROJETO.md` - notas de desenvolvimento: status de validacao de
   cada parser, decisoes de formato do OFX, proximos passos.
 

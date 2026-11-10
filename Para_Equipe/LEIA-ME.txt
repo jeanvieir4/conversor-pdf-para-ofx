@@ -1,4 +1,4 @@
-CONVERSOR DE EXTRATO BANCARIO (PDF -> EXCEL + OFX)
+CONVERSOR DE EXTRATO BANCARIO (PDF -> OFX)
 ==================================================================
 Jean Vieira | (49) 99907-9884 | jean.vieira@hotmail.com
 
@@ -28,10 +28,13 @@ COMO USAR
 3. Aguarde a janela preta terminar de processar (ela mostra o
    progresso de cada PDF).
 4. Pra cada PDF sao gerados, na mesma pasta:
-   - um .xlsx com o mesmo nome do PDF (ex: "extrato_cliente.pdf" gera
-     "extrato_cliente.xlsx");
    - um .ofx pra cada banco encontrado no PDF, pronto pra importar
      direto no sistema de conciliacao (ex: "extrato_cliente_Sicoob.ofx").
+   - SE NAO CONSEGUIR gerar o .ofx, sai um arquivo .txt com o nome do
+     PDF + "_ERRO" (ex: "extrato_cliente_ERRO.txt") explicando o que
+     houve, o que fazer e se existe versao nova do programa.
+   - Se o .ofx saiu mas o programa teve alguma ressalva, sai tambem um
+     "_AVISOS.txt" - leia antes de importar.
 5. Aperte Enter (ou feche a janela) quando terminar.
 
 Nao precisa mais passar pelo OFX Generator: o .ofx ja sai pronto, com o
@@ -53,8 +56,8 @@ ou debito, entao alguns lancamentos podem vir marcados
 "[A VERIFICAR]" na coluna Observacao. Confira esses manualmente.
 
 Se um PDF for de um banco ainda nao suportado (ex: Banrisul, Sulcredi,
-Votorantim, Banco Civia), ele nao gera lancamentos e aparece um aviso
-na aba "Pendencias" da planilha. Nesse caso, envie o PDF pro Jean pra
+Votorantim, Banco Civia), ele nao gera o .ofx e sai um
+arquivo "_ERRO.txt" explicando. Nesse caso, envie o PDF pro Jean pra
 adicionar suporte aquele banco.
 
 SOBRE O .OFX GERADO
@@ -68,10 +71,18 @@ depois de "ACCTID>".
 
 CONFERENCIA IMPORTANTE
 ------------------------
-Sempre confira a soma dos creditos e a soma dos debitos da planilha
-gerada contra os totais que o proprio extrato do banco declara
-(normalmente "Total", "Saldo do periodo" ou similar) antes de usar a
-planilha no fechamento.
+Sempre confira a soma dos creditos e a soma dos debitos do .ofx
+gerado contra os totais que o proprio extrato do banco declara
+(normalmente "Total", "Saldo do periodo" ou similar) antes de usar o
+arquivo no fechamento.
+
+ATUALIZACAO AUTOMATICA
+------------------------
+Ao abrir, o programa verifica se existe versao nova. Se existir,
+pergunta "Atualizar agora? (S/N)": digite S e Enter. Ele baixa, troca o
+arquivo NA MESMA PASTA e reabre sozinho (seus PDFs nao sao mexidos).
+Se nao conseguir atualizar (sem internet ou pasta sem permissao), ele
+continua funcionando na versao atual e mostra o link pra baixar.
 
 PROBLEMAS COMUNS
 -----------------
@@ -84,7 +95,7 @@ AVISO DE RESPONSABILIDADE
 ---------------------------
 Ferramenta oferecida "como esta", gratuita, sem garantia. É um auxilio
 pra agilizar a digitacao, nao substitui a conferencia profissional.
-Antes de usar qualquer planilha ou .ofx gerado no fechamento contabil de
+Antes de usar qualquer .ofx gerado no fechamento contabil de
 um cliente, confira sempre a soma dos creditos e a soma dos debitos
 contra os totais que o proprio extrato do banco declara. Quem usa a
 ferramenta e responsavel por essa conferencia.
