@@ -650,6 +650,47 @@ fim) e o Jean sempre precisava mandar o exe novo.
   equipe). Em ERRO o nome do arquivo continua (precisa saber qual falhou).
 - OCR separado: ultima versao v1.6 (so aviso de descontinuacao + link).
 
+## v3.2 - Sicoob aplicacoes, PagBank, 2o motor de OCR (RapidOCR) e OCR por layout
+Pedidos do Jean: (1) OCR nao era confiavel ("o Gemini consegue e o OCR nao") ->
+testado RapidOCR (ONNX, offline) contra o Tesseract; (2) REGRA: todo PDF novo
+enviado ganha versao normal (texto) E versao OCR (simulando o escaneado quando
+nao ha scan real: renderiza o PDF como imagem e usa a leitura direta de gabarito).
+- **Motor RapidOCR** (`ocr_rapid.py`, import preguicoso): usado so nos layouts
+  validados (`RAPID_DETECTORES` em `OCR/bancos_ocr.py`: Sicoob, PagBank, BB
+  "Dt. balancete", Caixa "Gerenciador"). `ocr_motor.ler_pdf_ocr` le a 1a pagina
+  com o Tesseract so pra identificar o layout, depois le tudo com o RapidOCR. Se
+  o RapidOCR falhar, cai pro Tesseract e escreve o motivo no `_AVISOS.txt`.
+  Resultado nos 3 extratos Sicoob simulados (188 lancamentos): Tesseract 126/188,
+  RapidOCR 188/188 a 100 dpi e 187/188 a 150 dpi, 0 lancamento errado marcado
+  como certo. RapidOCR perde os espacos entre palavras: detectores/parsers
+  ignoram espacos e o historico padrao e restaurado por `_restaurador`.
+  Build: `--hidden-import ocr_rapid --collect-all rapidocr_onnxruntime
+  --collect-all onnxruntime` e **onnxruntime==1.18.1** (a 1.23.2 dava "DLL load
+  failed" dentro do .exe). Exe passou de ~134 MB pra ~202 MB; ~30 s/pagina.
+- **Conferencia por saldo** (`_Conferidor` em `OCR/bancos_ocr.py`; Sicoob tem a
+  mesma logica inline): saldo anterior + lancamentos = saldo declarado. Sinal C/D
+  lido errado e corrigido se UM lancamento explica a diferenca; saldo lido errado
+  e resolvido pelo proximo que bater; trecho que nao bate fica `incerta` (fora do
+  OFX, listado no `_AVISOS.txt`). Linha com data+valor ilegivel nunca some em
+  silencio (contador "NAO puderam ser lidas"); data ilegivel (ex. "60/60") vira
+  lancamento incerto; saldo que muda sem lancamento que explique = "PODE TER
+  FALTADO LANCAMENTO".
+- **Novos leitores (so adicionados, nada antigo alterado):**
+  - `parse_sicoob` ganhou early-return para "EXTRATO DE APLICACOES" (RDC):
+    `_parse_sicoob_aplicacoes`; antes dava 0 lancamentos. 9 extratos reais: todos
+    fecham em 0,00 = saldo final. A aplicacao inicial entra como credito.
+  - `parse_pagbank` (+ detector `PagSeguro Internet`/`Extrato da conta`, COMPE
+    0290): 'Saldo do dia' confere; saldo inicial assumido 0,00. 1 extrato real.
+  - OCR: `parse_sicoob_ocr` (conta corrente + aplicacoes), `parse_pagbank_ocr`,
+    `parse_bb_balancete_ocr` (varredura diaria pro BB Rende Facil entra na
+    conferencia e sai do OFX), `parse_caixa_gerenciador_ocr` (a letra C/D da
+    Caixa e o sinal do SALDO; debito tem "-" antes do valor). `PARSERS_OCR['bb']`
+    e `['caixa']` viraram despachantes que mandam o layout antigo pro leitor
+    antigo, sem alteracao.
+- Testes (simulados, imagem limpa gerada do PDF): PagBank 8/8, BB 42/42, Caixa
+  29/29 (3 de 56 paginas), Sicoob 54/54 e 24/24 pelo .exe. NAO medido: scan de
+  papel real (torto/sombra) - pedir amostras reais.
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios

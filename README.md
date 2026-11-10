@@ -2,7 +2,7 @@
 
 Converte extrato bancario em PDF (Sicoob, Itau, Bradesco, Caixa, Banco do
 Brasil, Sicredi, Cresol, UniCred, Ailos/ViaCredi, Santander e mais) para
-OFX pronto para conciliacao (inclui OCR embutido para extrato escaneado: Caixa app e Banco do Brasil). 100% offline, sem IA, sem custo, sem
+OFX pronto para conciliacao (inclui OCR embutido para extrato escaneado: Sicoob, PagBank, Banco do Brasil e Caixa). 100% offline, sem IA, sem custo, sem
 copiar e colar.
 
 Desenvolvido por [Jean Vieira](mailto:jean.vieira@hotmail.com), contador,
@@ -34,7 +34,7 @@ Pra cada PDF, um arquivo por banco encontrado nele:
 ## Bancos suportados
 
 Sicoob, Caixa Economica Federal, Itau, UniCred, Cresol, Ailos/ViaCredi,
-Banco do Brasil, Bradesco, Sicredi e Santander.
+Banco do Brasil, Bradesco, Sicredi, Santander, Civia e PagBank.
 
 PDF de um banco ainda nao suportado nao trava a execucao: ele aparece na
 um arquivo `_ERRO.txt` explicando o que houve (e se ha versao nova), e o resto dos extratos e processado normal.

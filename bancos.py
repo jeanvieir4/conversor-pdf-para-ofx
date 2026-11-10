@@ -156,7 +156,53 @@ def _parse_sicoob_detalhado(texto):
     return out, None
 
 
+def _parse_sicoob_aplicacoes(texto):
+    """Terceiro layout do Sicoob (v3.2) - "EXTRATO DE APLICACOES" (RDC
+    Automatico): historico de movimentacao de UMA aplicacao, sem coluna
+    Documento. Cada linha: 'DD/MM/AAAA HISTORICO valor C|D saldo'; a 1a
+    linha (aplicacao inicial) traz so o valor. O sinal vem do SALDO ATUAL
+    (saldo novo - saldo anterior), nao so da letra, entao sai conferido.
+    A aplicacao inicial entra como credito pra a soma dos lancamentos
+    fechar com o saldo final da aplicacao (0,00 quando resgatada).
+    Linhas incoerentes com o saldo viram [A VERIFICAR] em 'obs'.
+    Validado com 9 extratos reais: todos fecham, saldo final = 'SALDO
+    DISPONIVEL EM' do resumo."""
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([CD]))?(?:\s+([\d\.]+,\d{2}))?$')
+    out = []
+    saldo_prev = None
+    for l in _linhas_uteis(texto):
+        m = padrao.match(l.strip())
+        if not m:
+            continue
+        data_str, desc, v, cd, sd = m.groups()
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        valor = _dec(v)
+        obs = ''
+        if sd is None:               # aplicacao inicial: o valor e tambem o saldo
+            tipo = 'C'
+            saldo = valor
+        else:
+            saldo = _dec(sd)
+            tipo = cd or 'C'
+            if saldo_prev is not None:
+                delta = saldo - saldo_prev
+                if abs(delta) == valor:
+                    tipo = 'C' if delta > 0 else 'D'
+                else:
+                    obs = '[A VERIFICAR] valor/saldo nao conferem'
+        saldo_prev = saldo
+        out.append({'data': dt, 'historico': desc.strip(), 'valor': valor, 'tipo': tipo, 'obs': obs})
+    return out, None
+
+
 def parse_sicoob(texto):
+    if ('EXTRATO DE APLICA' in texto and 'DADOS DA APLICA' in texto
+            and 'EXTRATO CONTA CORRENTE' not in texto):
+        return _parse_sicoob_aplicacoes(texto)
     if re.search(r'PER[ÍI]ODO:\s*\d{2}/\d{2}/\d{4}\s*-\s*\d{2}/\d{2}/\d{4}', texto):
         return _parse_sicoob_curto(texto)
     return _parse_sicoob_detalhado(texto)
@@ -1071,6 +1117,49 @@ def parse_civia(texto):
     return out, None
 
 
+# ---------------------------------------------------------------------------
+# PAGBANK (PagSeguro) - v3.2
+# ---------------------------------------------------------------------------
+def parse_pagbank(texto):
+    """Extrato da conta PagBank ('290 - PagSeguro Internet S/A', 'Extrato da
+    conta'). Linhas 'DD/MM/AAAA Descricao R$ valor' com o ano na data; debito
+    vem como '-R$ valor', credito como 'R$ valor'. 'Saldo do dia' nao e
+    lancamento: serve de conferencia - saldo anterior + lancamentos do dia
+    tem que dar o saldo declarado; se nao der, os lancamentos daquele dia
+    ficam [A VERIFICAR] em 'obs'. O saldo inicial da conta nao vem no
+    extrato: o 1o dia e conferido a partir de 0,00 (se nao bater, so o 1o dia
+    fica marcado). Validado com extrato real: todos os dias fecham."""
+    padrao = re.compile(r'^(\d{2}/\d{2}/\d{4})\s+(.+?)\s+(-?)R\$\s*([\d\.]+,\d{2})$')
+    out = []
+    dia = []
+    saldo_prev = Decimal('0')
+    for l in _linhas_uteis(texto):
+        m = padrao.match(l.strip())
+        if not m:
+            continue
+        data_str, desc, neg, v = m.groups()
+        dd, mm, yyyy = data_str.split('/')
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            continue
+        valor = _dec(v)
+        if desc.strip().lower() == 'saldo do dia':
+            soma = sum(t['valor'] * (1 if t['tipo'] == 'C' else -1) for t in dia)
+            if saldo_prev + soma != valor:
+                for t in dia:
+                    t['obs'] = '[A VERIFICAR] saldo do dia nao confere'
+            saldo_prev = valor
+            dia = []
+            continue
+        t = {'data': dt, 'historico': desc.strip(), 'valor': valor, 'tipo': 'D' if neg else 'C', 'obs': ''}
+        out.append(t)
+        dia.append(t)
+    for t in dia:
+        t['obs'] = '[A VERIFICAR] sem saldo do dia pra conferir'
+    return out, None
+
+
 BANK_PARSERS = {
     'sicoob': parse_sicoob,
     'caixa': parse_caixa,
@@ -1083,4 +1172,5 @@ BANK_PARSERS = {
     'sicredi': parse_sicredi,
     'bradesco': parse_bradesco,
     'civia': parse_civia,
+    'pagbank': parse_pagbank,
 }

@@ -48,8 +48,9 @@ arquivos arrastados, mesmo se houver outros PDFs na pasta.
 
 BANCOS SUPORTADOS
 ------------------
-Sicoob, Caixa Economica Federal, Itau, UniCred, Cresol, Ailos/ViaCredi,
-Banco do Brasil, Bradesco, Sicredi e Santander.
+Sicoob (inclui o "Extrato de Aplicacoes"/RDC), Caixa Economica Federal, Itau,
+UniCred, Cresol, Ailos/ViaCredi, Banco do Brasil, Bradesco, Sicredi,
+Santander, Civia e PagBank.
 
 Santander: o layout do PDF nao tem uma marcacao confiavel de credito
 ou debito, entao alguns lancamentos podem vir marcados
@@ -80,13 +81,16 @@ PDF ESCANEADO / FOTO / PRINT (OCR EMBUTIDO)
 ---------------------------------------------
 Se o PDF for uma IMAGEM (sem texto selecionavel), o programa le por OCR
 (reconhecimento optico de caracteres) automaticamente - nao precisa de
-outro programa. Bancos suportados no OCR: Caixa (extrato do aplicativo) e
-Banco do Brasil (internet banking e extrato de conta corrente escaneado).
+outro programa. Bancos suportados no OCR: Sicoob (conta corrente e extrato
+de aplicacoes), PagBank, Banco do Brasil (internet banking, conta corrente
+escaneado e "Consultas - Extrato de conta corrente") e Caixa (extrato do
+aplicativo e "Gerenciador Caixa"). Extrato escaneado demora: uns 30 segundos
+por pagina.
 ATENCAO: OCR ERRA, mesmo em numeros que parecem certos. Todo extrato lido
 por OCR sai com um arquivo "_AVISOS.txt" - leia e CONFIRA TODOS os valores
 contra o extrato original. Lancamentos com valor/sinal incerto NAO entram
 no .ofx; ficam listados no "_AVISOS.txt" pra voce lancar a mao.
-Por causa do OCR embutido o programa e grande (~135 MB) e o antivirus pode
+Por causa do OCR embutido o programa e grande (~200 MB) e o antivirus pode
 reclamar na primeira vez (ver "AVISO NA PRIMEIRA EXECUCAO").
 
 ATUALIZACAO AUTOMATICA

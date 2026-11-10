@@ -478,17 +478,15 @@
   </details>
 
   <div class="callout" style="margin-top:1.5rem">
-    <h2>Extrato digitalizado (foto/print do app do banco)?</h2>
+    <h2>Extrato digitalizado (escaneado, foto ou print)?</h2>
     <p>
-      Esse conversor precisa de um PDF com texto de verdade dentro. Se
-      você tiver só uma imagem escaneada, foto ou print exportado do
-      aplicativo do banco sem texto selecionável, use a ferramenta
-      separada <strong>Conversor OCR</strong> em vez desta — ela lê por
-      OCR (taxa de erro real, todo resultado precisa de conferência)
-      e hoje só suporta o extrato do app da Caixa Econômica Federal.
-    </p>
-    <p style="margin-top:0.8rem">
-      <a href="https://github.com/jeanvieir4/conversor-pdf-para-ofx/releases/download/ocr-1.0/Conversor_OCR.zip" target="_blank" rel="noopener noreferrer" style="font-weight:600">Baixar o Conversor OCR (.exe, ~120MB) &darr;</a>
+      O próprio conversor já lê PDF que é só imagem, por OCR embutido —
+      não precisa de outro programa. Hoje funciona para Sicoob, PagBank,
+      Banco do Brasil e Caixa. Cada lançamento é conferido contra os
+      saldos do extrato; o que não confere fica fora do .ofx e é listado
+      num arquivo de avisos para você conferir. Leitura por OCR é mais
+      lenta (cerca de 30 segundos por página) e sempre precisa de
+      conferência.
     </p>
   </div>
 

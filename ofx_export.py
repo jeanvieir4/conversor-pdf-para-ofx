@@ -22,6 +22,7 @@ COMPE_BANCO = {
     'santander': '0033',
     'sicredi': '0748',
     'bradesco': '0237',
+    'pagbank': '0290',  # PagBank (PagSeguro Internet S/A)
     'civia': '0085',  # Civia e uma cooperativa do Sistema Ailos - mesmo COMPE do Ailos
 }
 

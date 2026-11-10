@@ -25,7 +25,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '3.1'
+VERSAO_ATUAL = '3.2'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -97,6 +97,8 @@ DETECTORES = [
                               and 'SALDO TOTAL DISPON' in t),
     # Civia - 'EXTRATO ESPECIAL' (v2.2): outro cabecalho do Civia, ver parse_civia.
     ('civia',     lambda t: 'CIVIA - EXTRATO ESPECIAL' in t and 'CONTA/DV:' in t),
+    # PagBank (v3.2) - extrato da conta PagSeguro.
+    ('pagbank',   lambda t: 'PagSeguro Internet' in t and 'Extrato da conta' in t),
 ]
 
 
@@ -280,7 +282,7 @@ NOMES_BANCO = {
     'sicoob': 'Sicoob', 'caixa': 'Caixa', 'itau': 'Itau', 'unicred': 'UniCred',
     'cresol': 'Cresol', 'ailos': 'Ailos_ViaCredi', 'bb': 'BancoDoBrasil',
     'santander': 'Santander', 'sicredi': 'Sicredi', 'bradesco': 'Bradesco',
-    'civia': 'Civia',
+    'civia': 'Civia', 'pagbank': 'PagBank',
 }
 
 
