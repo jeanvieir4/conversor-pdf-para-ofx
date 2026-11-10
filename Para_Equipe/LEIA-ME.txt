@@ -76,6 +76,19 @@ gerado contra os totais que o proprio extrato do banco declara
 (normalmente "Total", "Saldo do periodo" ou similar) antes de usar o
 arquivo no fechamento.
 
+PDF ESCANEADO / FOTO / PRINT (OCR EMBUTIDO)
+---------------------------------------------
+Se o PDF for uma IMAGEM (sem texto selecionavel), o programa le por OCR
+(reconhecimento optico de caracteres) automaticamente - nao precisa de
+outro programa. Bancos suportados no OCR: Caixa (extrato do aplicativo) e
+Banco do Brasil (internet banking e extrato de conta corrente escaneado).
+ATENCAO: OCR ERRA, mesmo em numeros que parecem certos. Todo extrato lido
+por OCR sai com um arquivo "_AVISOS.txt" - leia e CONFIRA TODOS os valores
+contra o extrato original. Lancamentos com valor/sinal incerto NAO entram
+no .ofx; ficam listados no "_AVISOS.txt" pra voce lancar a mao.
+Por causa do OCR embutido o programa e grande (~135 MB) e o antivirus pode
+reclamar na primeira vez (ver "AVISO NA PRIMEIRA EXECUCAO").
+
 ATUALIZACAO AUTOMATICA
 ------------------------
 Ao abrir, o programa verifica se existe versao nova. Se existir,

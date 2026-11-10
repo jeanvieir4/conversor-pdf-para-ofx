@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Atualizacao automatica (com confirmacao) dos executaveis - usado pelo
-Conversor_Extratos e pelo Conversor_OCR.
+Conversor_Extratos (v3.0+: OCR embutido; o Conversor_OCR separado foi descontinuado).
 
 Fluxo: ao abrir, o programa le o arquivo de versao no GitHub; se houver
 versao nova e o usuario aceitar, baixa o .zip da release estavel, confere

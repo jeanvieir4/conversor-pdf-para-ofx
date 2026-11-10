@@ -25,7 +25,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '2.4'
+VERSAO_ATUAL = '3.0'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -336,13 +336,11 @@ def processar_pdf(caminho_pdf, pasta_saida):
     transacoes_por_banco = {}
     avisos = []
     total = 0
+    escaneado = False
     for banco, texto in blocos:
         if banco is None:
             if not texto.strip():
-                avisos.append(('(sem texto no PDF)',
-                                'Esse PDF parece ser uma imagem escaneada (sem nenhum texto '
-                                'selecionavel). O programa nao le extrato digitalizado, so PDF '
-                                'gerado digitalmente pelo banco.'))
+                escaneado = True
             else:
                 avisos.append(('(banco nao identificado)',
                                 'Um trecho do PDF nao bateu com nenhum layout de banco conhecido e foi ignorado.'))
@@ -356,6 +354,13 @@ def processar_pdf(caminho_pdf, pasta_saida):
         total += len(transacoes)
         if obs:
             avisos.append((banco, obs))
+
+    if escaneado:
+        if total == 0:
+            total += _ler_por_ocr(caminho_pdf, transacoes_por_banco, avisos)
+        else:
+            avisos.append(('(sem texto no PDF)',
+                            'Parte do PDF e imagem escaneada e foi ignorada (so as paginas com texto foram lidas).'))
 
     arquivos_ofx = []
     for banco, transacoes in transacoes_por_banco.items():
@@ -385,15 +390,53 @@ def processar_pdf(caminho_pdf, pasta_saida):
     return saida, total, avisos, arquivos_ofx
 
 
+def _ler_por_ocr(caminho_pdf, transacoes_por_banco, avisos):
+    """PDF que e imagem: le por OCR (ocr_motor). Linhas com sinal/valor incerto
+    NUNCA entram no OFX - ficam listadas no aviso (-> _AVISOS.txt). Retorna
+    quantos lancamentos confiaveis foram adicionados."""
+    try:
+        import ocr_motor
+    except Exception:
+        avisos.append(('(sem texto no PDF)',
+                        'Este PDF e uma imagem escaneada e o recurso de OCR nao esta disponivel nesta copia do programa.'))
+        return 0
+    print('      (PDF e imagem: lendo por OCR, pode demorar um pouco...)', flush=True)
+    try:
+        banco, transacoes, aviso = ocr_motor.ler_pdf_ocr(caminho_pdf)
+    except Exception as e:
+        avisos.append(('(sem texto no PDF)', f'Este PDF e uma imagem escaneada e a leitura por OCR falhou ({e}).'))
+        return 0
+    if banco is None:
+        avisos.append(('(banco nao identificado - OCR)', 'layout nao reconhecido'))
+        return 0
+    confiaveis = [t for t in transacoes if not t.get('incerta')]
+    incertas = [t for t in transacoes if t.get('incerta')]
+    texto = 'LIDO POR OCR (imagem). ' + (aviso or '')
+    if incertas:
+        texto += ('\nLINHAS QUE FICARAM DE FORA DO .OFX (nao deu pra confirmar valor/sinal pela imagem) '
+                  '- lance a mao depois de conferir no extrato:')
+        for t in incertas:
+            texto += (f"\n    {t['data'].strftime('%d/%m/%Y')}  {t['tipo']}  "
+                      f"{str(t['valor']).replace('.', ',')}  {t['historico']}")
+    avisos.append((banco, texto))
+    transacoes_por_banco.setdefault(banco, []).extend(confiaveis)
+    return len(confiaveis)
+
+
 def _texto_avisos(avisos):
     return '\n'.join(f'- {NOMES_BANCO.get(o, o)}: {a}' for o, a in avisos)
 
 
 def _explicar_falha(avisos, total):
     origens = [o for o, _ in avisos]
+    if '(banco nao identificado - OCR)' in origens:
+        return ('Este PDF é uma IMAGEM (extrato escaneado, foto ou print). O programa leu a imagem por OCR, '
+                'mas o layout não foi reconhecido. Hoje o OCR entende extratos da Caixa (aplicativo) e do '
+                'Banco do Brasil (internet banking e extrato de conta corrente escaneado). Pode ser outro '
+                'banco ou um modelo novo.')
     if '(sem texto no PDF)' in origens:
-        return ('Este PDF é uma IMAGEM (extrato escaneado, foto ou print): ele não tem texto que o '
-                'programa consiga ler, então nenhum lançamento foi encontrado.')
+        return ('Este PDF é uma IMAGEM (extrato escaneado, foto ou print) e o programa não conseguiu '
+                'lê-lo por OCR.\n\n' + _texto_avisos(avisos))
     if '(banco nao identificado)' in origens and total == 0 and len(origens) == len(
             [x for x in origens if x == '(banco nao identificado)']):
         return ('O programa não reconheceu o banco/layout deste extrato. Pode ser um banco que ainda '
@@ -408,9 +451,14 @@ def _explicar_falha(avisos, total):
 
 def _orientar_falha(avisos):
     origens = [o for o, _ in avisos]
+    if '(banco nao identificado - OCR)' in origens:
+        return ('1) Confira se a imagem está nítida, reta e completa (sem cortes).\n'
+                '2) Veja abaixo se existe versão nova do programa e atualize.\n'
+                '3) Se persistir, envie este PDF para o Jean (contato no fim deste arquivo) para incluir '
+                'suporte a este layout. Só dá para incluir com uma amostra real.')
     if '(sem texto no PDF)' in origens:
-        return ('Use o programa Conversor_OCR (ferramenta separada, feita para extrato escaneado) neste PDF. '
-                'Atenção: o OCR pode errar, confira os valores contra o extrato original.')
+        return ('Veja abaixo se existe versão nova do programa e atualize. Se persistir, envie este PDF '
+                'para o Jean (contato no fim deste arquivo).')
     return ('1) Confira se o PDF é mesmo um extrato bancário (e não um comprovante ou relatório) e se está '
             'completo.\n2) Veja abaixo se existe versão nova do programa e atualize.\n'
             '3) Se persistir, envie este PDF para o Jean (contato no fim deste arquivo) para incluir '
@@ -542,7 +590,7 @@ if __name__ == '__main__':
         try:
             saida, n, avisos, arquivos_ofx = processar_pdf(caminho, pasta_saida)
             if arquivos_ofx:
-                extra = f'  -> LEIA o {os.path.basename(caminho)[:-4]}_AVISOS.txt' if avisos else ''
+                extra = f'  -> LEIA o {os.path.splitext(nome)[0]}_AVISOS.txt' if avisos else ''
                 print(f'OK    {nome}: {n} lancamentos, .ofx gerado{extra}')
             else:
                 erros += 1

@@ -633,6 +633,18 @@ fim) e o Jean sempre precisava mandar o exe novo.
   final) - antes o resumo dizia "0 erros" mesmo quando o PDF nao gerava nada
   (agora PDF sem OFX conta como erro e aponta o `_ERRO.txt`).
 
+- **v3.0: OCR EMBUTIDO no Conversor_Extratos** (pedido do Jean: um arquivo so).
+  `ocr_motor.py` (import preguicoso em `converter._ler_por_ocr`) usa os parsers
+  de `OCR/bancos_ocr.py`. O PDF e lido por texto nativo; SO se nao rendeu nenhum
+  lancamento e ha pagina sem texto (imagem), cai no OCR. Linhas incertas ficam
+  fora do OFX e listadas no `_AVISOS.txt`. Build novo: `python -m PyInstaller
+  --onefile --console --name Conversor_Extratos --paths OCR --add-data
+  "OCRendor	esseract;tesseract" converter.py` (exe ~134 MB). O
+  `Conversor_OCR` separado (`OCR/conversor_ocr.py`, `Para_Equipe_OCR`, tags
+  `ocr-*`) esta DESCONTINUADO: nao recebe mais versoes; novos layouts de OCR
+  entram em `OCR/bancos_ocr.py` e saem no Conversor_Extratos. `VERSION_OCR` e
+  `SHA256_OCR` ficam sem uso.
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios

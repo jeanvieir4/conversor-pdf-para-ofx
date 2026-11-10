@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Relatorio em .txt gerado quando o .ofx NAO sai (ou sai com ressalvas) -
-usado pelo Conversor_Extratos e pelo Conversor_OCR. Escrito pra quem nao
+usado pelo Conversor_Extratos e (a partir da v3.0, com OCR embutido) pelo mesmo exe. Escrito pra quem nao
 e da area tecnica: diz o que houve, o que fazer e se existe versao nova do
 programa (muitos erros ja estao corrigidos numa versao mais nova).
 """
