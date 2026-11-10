@@ -25,7 +25,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '2.3'
+VERSAO_ATUAL = '2.4'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -475,11 +475,8 @@ def _mostrar_aviso_atualizacao(resultado_update, thread_update):
     quase sempre essa espera e de 0 segundos."""
     thread_update.join(timeout=2.5)
     if resultado_update.get('nova_versao'):
-        print()
-        print('============================================')
-        print(f"Nova versao disponivel: v{resultado_update['nova_versao']} (voce esta usando a v{VERSAO_ATUAL})")
-        print(f'Baixe em: {_URL_DOWNLOAD}')
-        print('============================================')
+        print(f"Ha uma versao nova (v{resultado_update['nova_versao']}). Abra de novo e responda S pra atualizar,")
+        print(f'ou baixe em: {_URL_DOWNLOAD}')
 
 
 def _pausar():
@@ -513,10 +510,8 @@ if __name__ == '__main__':
                                      args=(_URL_VERSION, VERSAO_ATUAL, resultado_update), daemon=True)
     thread_update.start()
 
-    print('============================================')
-    print('  Conversor PDF para OFX - Jean Vieira')
-    print(f'  Versao {VERSAO_ATUAL}')
-    print('============================================')
+    print(f'Conversor PDF para OFX v{VERSAO_ATUAL} - Jean Vieira')
+    print('-' * 44)
 
     # Atualizacao automatica (com confirmacao): ver atualizador.py.
     atualizador.limpar_restos(_NOME_EXE)
@@ -533,10 +528,8 @@ if __name__ == '__main__':
         arquivos = sorted(glob.glob(os.path.join(pasta_programa, '*.pdf')))
 
     if not arquivos:
-        print()
-        print('Nenhum arquivo PDF encontrado.')
-        print(f'Coloque os extratos em PDF nesta pasta ({pasta_programa})')
-        print('e execute o programa novamente, ou arraste os PDFs em cima do .exe.')
+        print('Nenhum PDF encontrado. Coloque os extratos na mesma pasta do programa')
+        print('(ou arraste os PDFs em cima do .exe) e abra de novo.')
         _mostrar_aviso_atualizacao(resultado_update, thread_update)
         if rodando_como_exe:
             _pausar()
@@ -545,29 +538,28 @@ if __name__ == '__main__':
     pasta_saida = os.environ.get('PASTA_SAIDA') or pasta_programa
     erros = 0
     for caminho in arquivos:
+        nome = os.path.basename(caminho)
         try:
             saida, n, avisos, arquivos_ofx = processar_pdf(caminho, pasta_saida)
             if arquivos_ofx:
-                print(f'OK: {caminho} -> {n} lancamentos, {len(arquivos_ofx)} arquivo(s) .ofx gerado(s)'
-                      + (' (veja tambem o arquivo _AVISOS.txt)' if avisos else ''))
+                extra = f'  -> LEIA o {os.path.basename(caminho)[:-4]}_AVISOS.txt' if avisos else ''
+                print(f'OK    {nome}: {n} lancamentos, .ofx gerado{extra}')
             else:
                 erros += 1
-                print(f'NAO GEROU OFX: {caminho}')
-                print(f'   Motivo e o que fazer: abra o arquivo {saida}')
+                print(f'ERRO  {nome}: o .ofx NAO foi gerado. Abra: {os.path.basename(saida)}')
         except Exception as e:
             erros += 1
             try:
                 txt = relatorio_excecao(caminho, pasta_saida, e)
-                print(f'NAO GEROU OFX: {caminho}')
-                print(f'   Motivo e o que fazer: abra o arquivo {txt}')
+                print(f'ERRO  {nome}: o .ofx NAO foi gerado. Abra: {os.path.basename(txt)}')
             except Exception:
-                print(f'ERRO ao processar "{caminho}": {e}')
+                print(f'ERRO  {nome}: {e}')
 
-    print()
-    print('============================================')
-    print(f'Concluido. {len(arquivos)} arquivo(s) processado(s), {erros} erro(s).')
-    print('Os arquivos .ofx (e, se houve problema, o .txt explicando) estao nesta mesma pasta.')
-    print('============================================')
+    print('-' * 44)
+    ok = len(arquivos) - erros
+    print(f'Resultado: {ok} com .ofx gerado, {erros} com problema.')
+    if erros:
+        print('Nos com problema, abra o arquivo _ERRO.txt (fica na mesma pasta do PDF).')
     _mostrar_aviso_atualizacao(resultado_update, thread_update)
     if rodando_como_exe:
         _pausar()

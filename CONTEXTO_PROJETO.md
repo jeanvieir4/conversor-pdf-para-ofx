@@ -629,6 +629,10 @@ fim) e o Jean sempre precisava mandar o exe novo.
   as linhas incertas (fora do OFX) ficam listadas no `_AVISOS.txt`.
   `gerar_excel` continua no converter.py mas ninguem mais chama.
 
+- v2.4 / OCR v1.5: console enxuto (uma linha por PDF: `OK`/`ERRO` + resumo
+  final) - antes o resumo dizia "0 erros" mesmo quando o PDF nao gerava nada
+  (agora PDF sem OFX conta como erro e aponta o `_ERRO.txt`).
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios

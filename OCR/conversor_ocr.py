@@ -32,7 +32,7 @@ import relatorio
 
 # Sempre que gerar uma nova versao do OCR: atualizar esse numero E o arquivo
 # VERSION_OCR no repositorio (mesmo numero), e o hash em SHA256_OCR.
-VERSAO_ATUAL = '1.4'
+VERSAO_ATUAL = '1.5'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION_OCR'
 _URL_HASH = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/SHA256_OCR'
@@ -184,17 +184,9 @@ if __name__ == '__main__':
                                      args=(_URL_VERSION, VERSAO_ATUAL, resultado_update), daemon=True)
     thread_update.start()
 
-    print('============================================')
-    print('  Conversor OCR (extrato digitalizado) - Jean Vieira')
-    print(f'  Versao {VERSAO_ATUAL}')
-    print('============================================')
-    print()
-    print('ATENCAO: essa ferramenta le extrato por IMAGEM (OCR), nao por')
-    print('texto nativo do PDF. Erros de leitura SAO ESPERADOS, mesmo em')
-    print('numeros que parecem corretos. Toda linha gerada vem marcada')
-    print('"Gerado por OCR" e precisa ser conferida contra o extrato')
-    print('original antes de usar em qualquer lancamento contabil.')
-    print('============================================')
+    print(f'Conversor OCR v{VERSAO_ATUAL} - Jean Vieira')
+    print('-' * 44)
+    print('ATENCAO: leitura por OCR pode errar. Confira tudo contra o extrato original.')
     print()
 
     # Atualizacao automatica (com confirmacao): ver atualizador.py.
@@ -210,9 +202,8 @@ if __name__ == '__main__':
         arquivos = sorted(glob.glob(os.path.join(pasta_programa, '*.pdf')))
 
     if not arquivos:
-        print('Nenhum arquivo PDF encontrado.')
-        print(f'Coloque os extratos digitalizados nesta pasta ({pasta_programa})')
-        print('e execute o programa novamente, ou arraste os PDFs em cima do .exe.')
+        print('Nenhum PDF encontrado. Coloque os extratos na mesma pasta do programa')
+        print('(ou arraste os PDFs em cima do .exe) e abra de novo.')
         _pausar()
         sys.exit(0)
 
@@ -220,16 +211,16 @@ if __name__ == '__main__':
     total_erros = 0
     for caminho in arquivos:
         pasta_saida = os.path.dirname(os.path.abspath(caminho))
+        nome = os.path.basename(caminho)
         try:
             saida, total, avisos, ofx = processar_pdf_ocr(caminho, pasta_saida)
             if ofx:
-                print(f'OK: {caminho} -> {total} lancamento(s) lido(s), {len(ofx)} arquivo(s) .ofx gerado(s)'
-                      + (' (veja tambem o arquivo _AVISOS.txt)' if avisos else ''))
+                extra = f'  -> LEIA o {nome[:-4]}_AVISOS.txt' if avisos else ''
+                print(f'OK    {nome}: {total} lancamentos lidos, .ofx gerado{extra}')
+                total_arquivos += 1
             else:
                 total_erros += 1
-                print(f'NAO GEROU OFX: {caminho}')
-                print(f'   Motivo e o que fazer: abra o arquivo {saida}')
-                continue
+                print(f'ERRO  {nome}: o .ofx NAO foi gerado. Abra: {os.path.basename(saida)}')
         except Exception as e:
             total_erros += 1
             try:
@@ -240,20 +231,15 @@ if __name__ == '__main__':
                     f'arquivo aberto/bloqueado por outro programa.\n\nDetalhe técnico: {e}',
                     'Abra o PDF para ver se ele abre normalmente e tente de novo. Veja abaixo se existe '
                     'versão nova do programa.')
-                print(f'NAO GEROU OFX: {caminho}')
-                print(f'   Motivo e o que fazer: abra o arquivo {txt}')
+                print(f'ERRO  {nome}: o .ofx NAO foi gerado. Abra: {os.path.basename(txt)}')
             except Exception:
-                print(f'ERRO ao processar {caminho}: {e}')
-            continue
-        total_arquivos += 1
+                print(f'ERRO  {nome}: {e}')
 
-    print()
-    print('============================================')
-    print(f'Concluido. {total_arquivos} arquivo(s) processado(s), {total_erros} erro(s).')
-    print('Os arquivos .ofx (e, se houve problema, o .txt explicando) estao nesta mesma pasta.')
-    print('LEMBRETE: confira os valores contra o extrato original antes de usar.')
-    print('============================================')
+    print('-' * 44)
+    print(f'Resultado: {total_arquivos} com .ofx gerado, {total_erros} com problema.')
+    if total_erros:
+        print('Nos com problema, abra o arquivo _ERRO.txt (fica na mesma pasta do PDF).')
     if resultado_update.get('nova_versao'):
-        print(f"Nova versao disponivel: v{resultado_update['nova_versao']} (voce esta usando a v{VERSAO_ATUAL})")
-        print(f'Baixe em: {_URL_DOWNLOAD}')
+        print(f"Ha uma versao nova (v{resultado_update['nova_versao']}). Abra de novo e responda S pra atualizar,")
+        print(f'ou baixe em: {_URL_DOWNLOAD}')
     _pausar()

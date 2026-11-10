@@ -200,12 +200,7 @@ def oferecer_atualizacao(nome_exe, url_zip, url_hash, versao_atual, versao_nova,
         interativo = True  # modo de teste local: aceita resposta por stdin redirecionado
     if not interativo:
         return
-    print()
-    print('============================================')
-    print(f'Ha uma versao nova: v{versao_nova} (voce esta usando a v{versao_atual}).')
-    print('Atualizar agora? O programa baixa, troca o arquivo nesta mesma pasta e')
-    print('reabre sozinho (seus PDFs nao sao mexidos).')
-    print('============================================')
+    print(f'Ha uma versao nova: v{versao_nova} (voce usa a v{versao_atual}).')
     try:
         resp = input('Atualizar agora? (S/N): ').strip().lower()
     except (EOFError, OSError):
