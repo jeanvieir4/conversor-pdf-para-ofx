@@ -1,3 +1,9 @@
+*** PROGRAMA DESCONTINUADO ***
+O OCR agora vem DENTRO do Conversor_Extratos (v3.0 ou mais nova): um unico
+programa le PDF com texto e PDF escaneado. Baixe em:
+https://github.com/jeanvieir4/conversor-pdf-para-ofx/releases/download/1.0/Conversor_Extratos.zip
+Este Conversor_OCR continua funcionando, mas nao recebe mais novidades.
+
 CONVERSOR OCR (EXTRATO DIGITALIZADO -> OFX)
 ==================================================================
 Jean Vieira | (49) 99907-9884 | jean.vieira@hotmail.com

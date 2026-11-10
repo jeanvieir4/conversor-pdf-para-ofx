@@ -32,12 +32,24 @@ import relatorio
 
 # Sempre que gerar uma nova versao do OCR: atualizar esse numero E o arquivo
 # VERSION_OCR no repositorio (mesmo numero), e o hash em SHA256_OCR.
-VERSAO_ATUAL = '1.5'
+VERSAO_ATUAL = '1.6'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION_OCR'
 _URL_HASH = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/SHA256_OCR'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/ocr-1.0/Conversor_OCR.zip'
 _NOME_EXE = 'Conversor_OCR.exe'
+_URL_NOVO = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
+
+
+def _aviso_descontinuado():
+    print('*' * 44)
+    print('ESTE PROGRAMA FOI DESCONTINUADO (ultima versao).')
+    print('O OCR agora vem DENTRO do Conversor_Extratos (v3.0 ou mais nova):')
+    print('um unico programa le PDF com texto e PDF escaneado.')
+    print('Baixe o Conversor_Extratos em:')
+    print(_URL_NOVO)
+    print('Este aqui continua funcionando, mas nao recebe mais novidades.')
+    print('*' * 44)
 _INFO_UPDATE = {}  # preenchido pela verificacao de versao; usado nos .txt
 
 _PREENCHIMENTO_INCERTA = PatternFill(start_color='F4CCCC', end_color='F4CCCC', fill_type='solid')
@@ -186,6 +198,7 @@ if __name__ == '__main__':
 
     print(f'Conversor OCR v{VERSAO_ATUAL} - Jean Vieira')
     print('-' * 44)
+    _aviso_descontinuado()
     print('ATENCAO: leitura por OCR pode errar. Confira tudo contra o extrato original.')
     print()
 
@@ -242,4 +255,6 @@ if __name__ == '__main__':
     if resultado_update.get('nova_versao'):
         print(f"Ha uma versao nova (v{resultado_update['nova_versao']}). Abra de novo e responda S pra atualizar,")
         print(f'ou baixe em: {_URL_DOWNLOAD}')
+    print()
+    _aviso_descontinuado()
     _pausar()
