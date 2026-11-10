@@ -25,7 +25,7 @@ from ofx_export import gerar_ofx
 # E o conteudo do arquivo VERSION no repositorio (mesmo numero nos dois).
 # So assim quem ja tem uma versao antiga instalada fica sabendo que saiu
 # uma nova - ver "_verificar_atualizacao" mais abaixo e o CONTEXTO_PROJETO.md.
-VERSAO_ATUAL = '3.0'
+VERSAO_ATUAL = '3.1'
 _REPO_GITHUB = 'jeanvieir4/conversor-pdf-para-ofx'
 _URL_VERSION = f'https://raw.githubusercontent.com/{_REPO_GITHUB}/main/VERSION'
 _URL_DOWNLOAD = f'https://github.com/{_REPO_GITHUB}/releases/download/1.0/Conversor_Extratos.zip'
@@ -284,6 +284,12 @@ NOMES_BANCO = {
 }
 
 
+# Nome do banco como aparece na tela, e resumo do ultimo PDF processado
+# (banco, data inicial, data final, quantidade) - usado so pra mostrar na tela.
+_NOME_TELA = {'bb': 'Banco do Brasil', 'ailos': 'Ailos/ViaCredi'}
+_RESUMO_ULTIMO = []
+
+
 def gerar_excel(transacoes_por_banco, avisos, caminho_saida):
     wb = Workbook()
     wb.remove(wb.active)  # a aba ativa padrao e substituida por uma aba por banco
@@ -332,6 +338,7 @@ def gerar_excel(transacoes_por_banco, avisos, caminho_saida):
 
 def processar_pdf(caminho_pdf, pasta_saida):
     nome_base = os.path.splitext(os.path.basename(caminho_pdf))[0]
+    _RESUMO_ULTIMO.clear()
     blocos = extrair_blocos_por_banco(caminho_pdf)
     transacoes_por_banco = {}
     avisos = []
@@ -368,6 +375,10 @@ def processar_pdf(caminho_pdf, pasta_saida):
         caminho_ofx = os.path.join(pasta_saida, f'{nome_base}_{titulo_banco}.ofx')
         if gerar_ofx(transacoes, banco, caminho_ofx):
             arquivos_ofx.append(caminho_ofx)
+            datas = [t['data'] for t in transacoes if t.get('data')]
+            _RESUMO_ULTIMO.append((_NOME_TELA.get(banco, titulo_banco),
+                                   min(datas) if datas else None, max(datas) if datas else None,
+                                   len(transacoes)))
 
     if arquivos_ofx:
         saida = arquivos_ofx[0]
@@ -590,8 +601,11 @@ if __name__ == '__main__':
         try:
             saida, n, avisos, arquivos_ofx = processar_pdf(caminho, pasta_saida)
             if arquivos_ofx:
-                extra = f'  -> LEIA o {os.path.splitext(nome)[0]}_AVISOS.txt' if avisos else ''
-                print(f'OK    {nome}: {n} lancamentos, .ofx gerado{extra}')
+                for banco_tela, d1, d2, qtd in _RESUMO_ULTIMO:
+                    periodo = f'{d1:%d/%m/%Y} a {d2:%d/%m/%Y}' if d1 and d2 else 'periodo nao identificado'
+                    print(f'OK    {banco_tela}, {periodo}: {qtd} lancamentos, .ofx gerado')
+                if avisos:
+                    print(f'      ATENCAO: leia o arquivo {os.path.splitext(nome)[0]}_AVISOS.txt')
             else:
                 erros += 1
                 print(f'ERRO  {nome}: o .ofx NAO foi gerado. Abra: {os.path.basename(saida)}')

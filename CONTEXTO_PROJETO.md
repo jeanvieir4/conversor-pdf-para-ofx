@@ -645,6 +645,11 @@ fim) e o Jean sempre precisava mandar o exe novo.
   entram em `OCR/bancos_ocr.py` e saem no Conversor_Extratos. `VERSION_OCR` e
   `SHA256_OCR` ficam sem uso.
 
+- v3.1: a linha de cada PDF na tela mostra "Banco, periodo" (primeira e ultima
+  data dos lancamentos) em vez do nome do arquivo (o nome nao ajudava a
+  equipe). Em ERRO o nome do arquivo continua (precisa saber qual falhou).
+- OCR separado: ultima versao v1.6 (so aviso de descontinuacao + link).
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios
