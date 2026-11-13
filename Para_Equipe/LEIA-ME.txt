@@ -84,7 +84,7 @@ Se o PDF for uma IMAGEM (sem texto selecionavel), o programa le por OCR
 outro programa. Bancos suportados no OCR: Sicoob (conta corrente e extrato
 de aplicacoes), PagBank, Banco do Brasil (internet banking, conta corrente
 escaneado e "Consultas - Extrato de conta corrente") e Caixa (extrato do
-aplicativo e "Gerenciador Caixa"). Extrato escaneado demora: uns 30 segundos
+aplicativo, "Gerenciador Caixa" e "Extrato por periodo"). Extrato escaneado demora: uns 30 segundos
 por pagina.
 ATENCAO: OCR ERRA, mesmo em numeros que parecem certos. Todo extrato lido
 por OCR sai com um arquivo "_AVISOS.txt" - leia e CONFIRA TODOS os valores

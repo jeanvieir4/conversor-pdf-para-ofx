@@ -17,6 +17,7 @@ normalmente na versao antiga.
 import sys
 import os
 import io
+import ssl
 import hashlib
 import subprocess
 import tempfile
@@ -36,8 +37,21 @@ def _url(url):
     return url
 
 
+def _contexto_ssl():
+    """Certificados do Windows + os da certifi (vai dentro do .exe). Sem isso, em PC
+    que nao tem algum certificado intermediario do GitHub, o download falha com
+    CERTIFICATE_VERIFY_FAILED. A verificacao continua LIGADA."""
+    ctx = ssl.create_default_context()
+    try:
+        import certifi
+        ctx.load_verify_locations(cafile=certifi.where())
+    except Exception:
+        pass
+    return ctx
+
+
 def _ler_texto(url, timeout):
-    with urllib.request.urlopen(_url(url), timeout=timeout) as resp:
+    with urllib.request.urlopen(_url(url), timeout=timeout, context=_contexto_ssl()) as resp:
         return resp.read().decode('utf-8').strip()
 
 
@@ -96,7 +110,7 @@ def _pasta_gravavel(pasta):
 
 
 def _baixar(url, timeout=30):
-    with urllib.request.urlopen(_url(url), timeout=timeout) as resp:
+    with urllib.request.urlopen(_url(url), timeout=timeout, context=_contexto_ssl()) as resp:
         total = int(resp.headers.get('Content-Length') or 0)
         buf = io.BytesIO()
         lido = 0

@@ -897,7 +897,7 @@ def identificar_caixa_gerenciador_ocr(linhas):
 _RE_CAIXA3 = re.compile(r'^(\d{2}/\d{2}/\d{4})\s*(.*?)\s*(-?)\s*R\$\s*(' + _NUM + r')\s*R\$\s*(' + _NUM +
                         r')\s*([CD€])?$')
 _RE_CAIXA3_SALDO = re.compile(r'^(\d{2}/\d{2}/\d{4})\s*SALDO\s*DIA\s*R\$\s*(' + _NUM + r')\s*([CD€])?$', re.IGNORECASE)
-_RE_CAIXA3_ANT = re.compile(r'SALDO\s*ANTERIOR.*?R\$\s*(' + _NUM + r')\s*([CD€])?', re.IGNORECASE)
+_RE_CAIXA3_ANT = re.compile(r'SALDO\s*ANTERIOR.*?R[$S]\s*(' + _NUM + r')\s*([CD€])?', re.IGNORECASE)
 _HIST_CAIXA3 = _restaurador(['CRED PIX QR COD EST', 'PIX RECEBIDO DADOS CONTA', 'CRED PIX CHAVE', 'PIX RECEBIDO',
                              'DEB PIX CHAVE', 'ENVIO DE TED', 'APLIC AUTOMATICA FUNDO', 'DEB PIX QR COD',
                              'DEBITO AUTOMATICO', 'TARIFA'])
@@ -961,6 +961,92 @@ def parse_caixa_gerenciador_ocr(linhas):
     return transacoes, _montar_aviso('Caixa', transacoes, conf, n_nao_lidas)
 
 
+# ------------------------------------- Caixa (app/internet banking, "por periodo")
+def identificar_caixa_periodo_ocr(linhas):
+    """Caixa 'Extrato por periodo' (app / internet banking, #PESSOAL): colunas Data,
+    Nr. Doc, Historico/Complemento, Favorecido, CPF/CNPJ, Valor, Saldo, em ordem do
+    mais novo pro mais antigo. Nao depende do logo (o Tesseract embaralha)."""
+    t = _sem_espaco(' '.join(linhas))
+    return 'EXTRATOPORPERIODO' in t and 'NR.DOC' in t and 'SALDOANTERIOR' in t and 'FAVORECIDO' in t
+
+
+_RE_CAIXA_P = re.compile(r'^(\d{2}/\d{2}/\d{4})\s*-\s*(\d{2}:\d{2}:\d{2})\s*(\d{6})\s*(.*?)\s*(' + _NUM +
+                         r')\s*([CD\u20ac])?\s*(' + _NUM + r')\s*([CD\u20ac])?$')
+_HIST_CAIXA_P = _restaurador([
+    'CRED PIX QR COD EST', 'CRED PIX CHAVE', 'PIX RECEBIDO DADOS CONTA', 'DEB PIX CHAVE', 'PAGAMENTO DE BOLETO',
+    'SAQUE DIN LOTERICO', 'PLANO MAIS VALOR 2', 'COMPRA CARTAO DEBITO', 'DEPOSITO DINH LOTERICO',
+    'PAGAMENTO GPS INSS IBC', 'PAGAMENTO AGUA', 'MENSALIDADE CESTA SERVICO', 'ENVIO DE TED', 'TARIFA'])
+_HISTORICOS_CAIXA_P = ['CRED PIX QR COD EST', 'CRED PIX CHAVE', 'PIX RECEBIDO DADOS CONTA', 'DEB PIX CHAVE',
+                       'PAGAMENTO DE BOLETO', 'SAQUE DIN LOTERICO', 'PLANO MAIS VALOR 2', 'COMPRA CARTAO DEBITO',
+                       'DEPOSITO DINH LOTERICO', 'PAGAMENTO GPS INSS IBC', 'PAGAMENTO AGUA',
+                       'MENSALIDADE CESTA SERVICO', 'ENVIO DE TED', 'TARIFA']
+
+
+_RE_CPF_MASC = re.compile(r'\*{2,3}\.?(\d{3})\.(\d{3})\*{3}')
+
+
+def _limpar_favorecido_caixa(meio):
+    """So texto (MEMO), nao afeta valor/data/sinal: o CPF mascarado da Caixa e sempre
+    '***.NNN.NNN***' (o OCR as vezes perde o ponto inicial) e um nome que comeca com
+    'l' minusculo e um 'I' maiusculo mal lido ('lrisneide' -> 'Irisneide')."""
+    meio = _RE_CPF_MASC.sub(lambda m: '***.' + m.group(1) + '.' + m.group(2) + '***', meio)
+    return re.sub(r'(?<![A-Za-z])l(?=[a-z]{3})', 'I', meio)
+
+
+def parse_caixa_periodo_ocr(linhas):
+    """Cada linha: 'DD/MM/AAAA - HH:MM:SS NRDOC HISTORICO [favorecido] [cpf] VALOR C|D SALDO C|D'.
+    O saldo da linha e o saldo DEPOIS do lancamento; como a lista vem do mais novo pro
+    mais antigo, os lancamentos sao conferidos em ordem cronologica (a partir do saldo
+    anterior) contra o saldo de cada linha. Linhas 'SALDO DIA' nao sao lancamento. A letra
+    C/D do valor e o sinal do lancamento (a do saldo e o sinal do saldo). O favorecido e o
+    CPF/CNPJ vao no historico (estao na mesma linha). Historico fora da lista conhecida
+    NAO e descartado: entra com o texto lido."""
+    base = None
+    for l in linhas:
+        m = _RE_CAIXA3_ANT.search(l)
+        if m:
+            base = _dec(m.group(1)) * _sinal_letra(m.group(2) or 'C')
+            break
+    itens = []
+    n_nao_lidas = 0
+    for l in linhas:
+        l = l.strip()
+        m = _RE_CAIXA_P.match(l)
+        if not m:
+            if re.match(r'^\d{2}/\d{2}/\d{4}\s*-', l) and re.search(_NUM, l):
+                n_nao_lidas += 1
+            continue
+        data_str, _hora, doc, meio, v, vletra, s, sletra = m.groups()
+        if 'SALDODIA' in _sem_espaco(meio):
+            continue
+        itens.append((data_str, doc, meio.strip(), v, vletra, s, sletra))
+    transacoes = []
+    conf = _Conferidor(base=base)
+    for data_str, doc, meio, v, vletra, s, sletra in reversed(itens):   # cronologico
+        dd, mm, yyyy = data_str.split('/')
+        data_ruim = False
+        try:
+            dt = date(int(yyyy), int(mm), int(dd))
+        except ValueError:
+            dt = transacoes[-1]['data'] if transacoes else date.today()
+            data_ruim = True
+        hist = _HIST_CAIXA_P(_limpar_favorecido_caixa(meio))
+        for h in _HISTORICOS_CAIXA_P:
+            if hist.upper().startswith(h):
+                hist = h + (' - ' + hist[len(h):].strip() if hist[len(h):].strip() else '')
+                break
+        t = {'data': dt, 'historico': hist.strip(), 'valor': _dec(v), 'tipo': 'D' if vletra == 'D' else 'C',
+             'obs': '', 'incerta': False, 'doc': doc}
+        if data_ruim:
+            t['incerta'] = True
+            t['obs'] = '[A VERIFICAR - OCR] data ilegivel (' + data_str[:5] + ')'
+        transacoes.append(t)
+        conf.tx(t)
+        conf.saldo(_dec(s) * _sinal_letra(sletra or 'C'))
+    conf.fim()
+    return transacoes, _montar_aviso('Caixa', transacoes, conf, n_nao_lidas)
+
+
 # despacho por layout: o layout antigo de cada banco continua com o leitor de sempre
 def _parse_bb_ocr_todos(linhas):
     if identificar_bb_balancete_ocr(linhas):
@@ -974,12 +1060,24 @@ def _parse_caixa_ocr_todos(linhas):
     return parse_caixa_app_ocr(linhas)
 
 
+def _parse_caixa_rapid(linhas):
+    """Caixa lida pelo RapidOCR: o layout 'por periodo' tem leitor proprio (com conferencia
+    por saldo); os demais seguem o despacho de sempre."""
+    if identificar_caixa_periodo_ocr(linhas):
+        return parse_caixa_periodo_ocr(linhas)
+    return _parse_caixa_ocr_todos(linhas)
+
+
+PARSERS_RAPID = {'caixa': _parse_caixa_rapid}
+
+
 # layouts melhor lidos pelo RapidOCR (ocr_rapid.py): (banco, detector)
 RAPID_DETECTORES = [
     ('sicoob', identificar_sicoob_ocr),
     ('pagbank', identificar_pagbank_ocr),
     ('bb', identificar_bb_balancete_ocr),
     ('caixa', identificar_caixa_gerenciador_ocr),
+    ('caixa', identificar_caixa_periodo_ocr),
 ]
 
 

@@ -19,7 +19,7 @@ from PIL import Image
 _AQUI = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, os.path.join(_AQUI, 'OCR'))
 from bancos_ocr import (linhas_por_posicao, DETECTORES_OCR, PARSERS_OCR,  # noqa: E402
-                        RAPID_DETECTORES)
+                        RAPID_DETECTORES, PARSERS_RAPID)
 
 ESCALA_UPSCALE = 2  # ampliar a imagem antes do OCR melhora a leitura de C/D colado no valor
 DPI_RENDER = 300
@@ -73,7 +73,8 @@ def ler_pdf_ocr(caminho_pdf):
             import ocr_rapid
             linhas_rapid = ocr_rapid.linhas_pdf(caminho_pdf, restaurar_sicoob=(banco_rapid == 'sicoob'))
             if any(nome == banco_rapid and det(linhas_rapid) for nome, det in RAPID_DETECTORES):
-                transacoes, aviso = PARSERS_OCR[banco_rapid](linhas_rapid)
+                parser = PARSERS_RAPID.get(banco_rapid, PARSERS_OCR[banco_rapid])
+                transacoes, aviso = parser(linhas_rapid)
                 return banco_rapid, transacoes, aviso
             erro_rapid = 'RapidOCR nao reconheceu o layout'
     except Exception as e:

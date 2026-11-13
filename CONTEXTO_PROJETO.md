@@ -691,6 +691,19 @@ nao ha scan real: renderiza o PDF como imagem e usa a leitura direta de gabarito
   29/29 (3 de 56 paginas), Sicoob 54/54 e 24/24 pelo .exe. NAO medido: scan de
   papel real (torto/sombra) - pedir amostras reais.
 
+## v3.3 - Caixa "Extrato por periodo" por OCR + atualizador com certifi
+- `parse_caixa_periodo_ocr` (so RapidOCR; detector `identificar_caixa_periodo_ocr`):
+  layout do app/internet banking da Caixa (colunas Data, Nr. Doc, Historico, Favorecido,
+  CPF/CNPJ, Valor, Saldo; do mais novo pro mais antigo). Cada lancamento e conferido contra
+  o saldo da propria linha, em ordem cronologica. Amostra real (scan, 3 pag.): 41/41, liquido
+  887,65 = saldo final, 14/14 'saldo dia'. Conferido linha a linha com a imagem: so o MEMO
+  tinha erro (CPF mascarado sem o ponto inicial; 'I' lido como 'l') -> `_limpar_favorecido_caixa`.
+  Versao em texto (nao OCR) desse layout: ainda sem amostra.
+- `atualizador.py`: download e leitura de versao usam `ssl.create_default_context()` +
+  `certifi` (CERTIFICATE_VERIFY_FAILED em PC sem algum certificado intermediario do GitHub).
+  Verificacao continua ligada. Build precisa de `--hidden-import certifi --collect-data certifi`.
+  Quem esta na v3.2 ou anterior tem o atualizador antigo: baixa manualmente uma vez.
+
 ## Interface grafica (GUI) - em teste
 
 Motivo: a tela estilo DOS do `.exe` console estava assustando usuarios
